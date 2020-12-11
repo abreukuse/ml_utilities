@@ -22,8 +22,12 @@ def seasonal_features(df,
 
   cyclical: Boolean default 'False'. Set 'True' in order to produce sine and cosine conversion.
 
-  deliver: Boolean default 'False'. Set 'True' in order to return the result.
+  deliver: Boolean. Default 'False' for changes to occur in the same dataframe provided. 
+           Set 'True' in order to return the result in a new dataframe.
   '''
+
+  if deliver: df = df.copy()
+
   obj = df[date_column].dt
 
   features = ['day',
@@ -51,7 +55,7 @@ def lag_attributes(df,
                    target, 
                    lags=None, 
                    lags_diff=None, 
-                   group=None,
+                   group_by=None,
                    deliver=False):
   '''
   Generates lagged features from a time series
@@ -66,17 +70,20 @@ def lag_attributes(df,
 
   lags_diff: List with integers of the lag differences to be included as features.
 
-  group: String with the column name referring the groups to be formed in order to generate separated features for each group.
+  group_by: String with the column name referring the groups to be formed in order to generate separated features for each group.
 
-  deliver: Boolean default 'False'. Set 'True' in order to return the result.
+  deliver: Boolean. Default 'False' for changes to occur in the same dataframe provided. 
+           Set 'True' in order to return the result in a new dataframe.
   '''
+  if deliver: df = df.copy()
+
   if lags:
     for lag in lags:
-      df[f'lag_{target}_{lag}'] = df.groupby([group])[target].shift(lag) if group else df[target].shift(lag)
+      df[f'lag_{target}_{lag}'] = df.groupby([group_by])[target].shift(lag) if group_by else df[target].shift(lag)
 
   if lags_diff:
     for diff in lags_diff:
-      df[f'lag_diff_{target}_{diff}'] = df.groupby([group])[target].shift().diff(diff) if group else df[target].shift().diff(diff)
+      df[f'lag_diff_{target}_{diff}'] = df.groupby([group_by])[target].shift().diff(diff) if group_by else df[target].shift().diff(diff)
       
   if deliver: return df
 
@@ -85,7 +92,7 @@ def moving_attributes(df,
                       target, 
                       windows, 
                       which_ones='all', 
-                      group=None, 
+                      group_by=None, 
                       delta_roll_mean=False,
                       deliver=False):
   '''
@@ -103,13 +110,16 @@ def moving_attributes(df,
               ['mean','median','std','min','max','week','skew','kurt','sum'].
               Default 'all'. All the features will be created.
 
-  group: String with the column name referring the groups to be formed in order to generate separated values for each group.
+  group_by: String with the column name referring the groups to be formed in order to generate separated values for each group.
 
   delta_roll_mean: Boolean. Wether or not to genetare features referring current value minus the mean.
 
-  deliver: Boolean default 'False'. Set 'True' in order to return the result.
+  deliver: Boolean. Default 'False' for changes to occur in the same dataframe provided. 
+           Set 'True' in order to return the result in a new dataframe.
   '''
-  obj = df.groupby([group])[target].shift() if group else df[target].shift()
+  if deliver: df = df.copy()
+
+  obj = df.groupby([group_by])[target].shift() if group_by else df[target].shift()
 
   features = ['mean',
               'median',
@@ -126,8 +136,8 @@ def moving_attributes(df,
 
   if delta_roll_mean:
     for window in windows:
-      if group:
-        series = df.groupby([group])[target]
+      if group_by:
+        series = df.groupby([group_by])[target]
         groups = series.groups.keys()
         df[f'delta_roll_mean_{target}_{window}'] = pd.concat([(series.get_group(group) - series.get_group(group).rolling(window).mean()).shift() for group in groups])
       else:

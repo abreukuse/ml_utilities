@@ -2,9 +2,24 @@ import pandas as pd
 import numpy as np
 from scipy.stats import mode
 
-class GroupImputer():
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class GroupImputer(BaseEstimator, TransformerMixin):
+  '''
+  Fazer imputação de dados faltantes de acordo com um agrupamento
+  ---------------------------------
+
+  parâmetros
+
+  grouping: Coluna categórica com os níveis que formarão os grupos
+
+  columns: lista contendo quais colunas numéricas devem ser imputadas
+
+  strategy: Que estratégia de imputação deve ser implementada. Opções: {'mean', 'median', 'mode'}. Padrão 'mean'.
+  '''
 
   def __init__(self, grouping, columns, strategy = 'mean'):
+
     self.grouping = grouping
     self.columns = columns
     self.strategy = strategy
@@ -18,22 +33,22 @@ class GroupImputer():
       for column in self.columns:
         imputer[column] = imputer[column].map(lambda x: x[0][0])
     
-    # verifica se algum grupo não possui nenhum valor e substituir os valores faltantes pela mediana de cada coluna
-    if X[self.columns].isnull().sum().sum() > 0:
+    # é preciso verificar se algum grupo não possui nenhum valor e substituir os valores faltantes pela mediana de cada coluna
+    if imputer.isnull().sum().sum() > 0:
       dici_impute = {column : imputer[column].aggregate(np.median) for column in imputer.columns if imputer[column].isnull().any()}
       imputer.fillna(dici_impute, inplace=True)
 
     self.dict_result = imputer.to_dict(orient='index')
+
     return self
 
-  def transform(self, X, y=None):
+  def transform(self, X):
     impute_storage = []
-    groups = sorted(X[self.grouping].unique())
+    groups = X[self.grouping].unique()
     for group in groups:
       impute = X[X[self.grouping] == group].fillna(self.dict_result[group])
       impute_storage.append(impute)
 
     X = pd.concat(impute_storage)
-    X.sort_index(inplace=True)
     
     return X
