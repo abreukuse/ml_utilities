@@ -43,3 +43,25 @@ class ColumnsSelector:
     
     result = self.data[sorted(set(self.initializer), key=self.initializer.index)].copy()
     return result
+
+def select(data, insert=None, remove=None, initializer=[]):    
+  if (insert != None) and \
+        all(element in data.columns for element in insert) and \
+                    (not all(element in initializer for element in insert)):
+
+    for cada in insert:
+      initializer.insert(len(initializer), cada)
+    
+  # Verify columns name that do not consist in the data provided
+  elif insert !=None and not all(element in data.columns for element in insert):
+    
+    off_items = [element for element in insert if element not in data.columns]
+    print('This elements: {}. Were not found in the data columns provided.'.format(off_items))
+
+  if (remove != None):
+    for cada in remove:
+      initializer[:] = sorted(set(initializer), key=initializer.index)
+      initializer.remove(cada)
+
+  result = data[sorted(set(initializer), key=initializer.index)].copy()
+  return result
