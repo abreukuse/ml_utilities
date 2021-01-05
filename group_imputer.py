@@ -38,7 +38,7 @@ class GroupImputer(BaseEstimator, TransformerMixin):
       dici_impute = {column : imputer[column].aggregate(np.median) for column in imputer.columns if imputer[column].isnull().any()}
       imputer.fillna(dici_impute, inplace=True)
 
-    self.dict_result = imputer.to_dict(orient='index')
+    self._dict_result = imputer.to_dict(orient='index')
 
     return self
 
@@ -46,7 +46,7 @@ class GroupImputer(BaseEstimator, TransformerMixin):
     impute_storage = []
     groups = X[self.grouping].unique()
     for group in groups:
-      impute = X[X[self.grouping] == group].fillna(self.dict_result[group])
+      impute = X[X[self.grouping] == group].fillna(self._dict_result[group])
       impute_storage.append(impute)
 
     X = pd.concat(impute_storage)
