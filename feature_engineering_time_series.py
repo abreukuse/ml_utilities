@@ -107,7 +107,7 @@ def moving_attributes(df,
 
     which_ones: List containing which features should be created. 
                             Features available-
-                            ['mean','median','std','min','max','week','skew','kurt','sum'].
+                            ['mean','median','std','min','max','skew','kurt','sum'].
                             Default 'all'. All the features will be created.
 
     group_by: String with the column name referring the groups to be formed in order to generate separated values for each group.

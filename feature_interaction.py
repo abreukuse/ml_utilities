@@ -14,35 +14,12 @@ from sympy.utilities.lambdify import lambdify
 from sklearn.preprocessing import StandardScaler
 
 
-def colnames2symbols(c, i=0):
-    # take a messy column name and transform it to something sympy can handle
-    # worst case: i is the number of the features
-    # has to be a string
-    c = str(c)
-    # should not contain non-alphanumeric characters
-    c = re.sub(r"\W+", "", c)
-    if not c:
-        c = "x%03i" % i
-    elif c[0].isdigit():
-        c = "x" + c
-    return c
-
-
-def ncr(n, r):
-    # compute number of combinations for n chose r
-    r = min(r, n - r)
-    numer = reduce(op.mul, range(n, n - r, -1), 1)
-    denom = reduce(op.mul, range(1, r + 1), 1)
-    return numer // denom
-
-
 def engineer_features(
     df_org,
     start_features=None,
     max_steps=3,
     transformations=("1/", "exp", "log", "abs", "sqrt", "^2", "^3"),
     correlation_threshold=0.9,
-    scaled=False,
     verbose=0,
 ):
     """
@@ -72,6 +49,27 @@ def engineer_features(
         - feature_pool: dict with {col: sympy formula} formulas to generate each feature
     """
     # initialize the feature pool with columns from the dataframe
+
+    def colnames2symbols(c, i=0):
+        # take a messy column name and transform it to something sympy can handle
+        # worst case: i is the number of the features
+        # has to be a string
+        c = str(c)
+        # should not contain non-alphanumeric characters
+        c = re.sub(r"\W+", "", c)
+        if not c:
+            c = "x%03i" % i
+        elif c[0].isdigit():
+            c = "x" + c
+        return c
+
+    def ncr(n, r):
+        # compute number of combinations for n chose r
+        r = min(r, n - r)
+        numer = reduce(op.mul, range(n, n - r, -1), 1)
+        denom = reduce(op.mul, range(1, r + 1), 1)
+        return numer // denom
+
     if not start_features:
         start_features = df_org.columns
     else:
@@ -266,12 +264,19 @@ def engineer_features(
     cols = [c for c in list(df.columns) if c in feature_pool and c not in df_org.columns]  # categorical cols not in feature_pool
     if cols:
         # check for correlated features again; this time with the start features
-        if scaled == True:
-            corrs = dict(zip(cols, np.max(np.abs(np.dot(df[cols].T, df_org)/df_org.shape[0]), axis=1)))
-        elif scaled == False:
-            corrs = dict(zip(cols, np.max(np.abs(np.dot(StandardScaler().fit_transform(df[cols]).T, StandardScaler().fit_transform(df_org))/df_org.shape[0]), axis=1)))
+        corrs = dict(zip(cols, np.max(np.abs(np.dot(StandardScaler().fit_transform(df[cols]).T, StandardScaler().fit_transform(df_org))/df_org.shape[0]), axis=1)))
         cols = [c for c in cols if corrs[c] < correlation_threshold]
-    cols = list(df_org.columns) + cols
+
+        # tentar fazer o teste de correlação nas variáveis originais, tem a parte do df_org que ainda tenho que ver
+        cor_matrix = df_org.corr().abs()
+        upper_tri = cor_matrix.where(np.triu(np.ones(cor_matrix.shape),k=1).astype(np.bool)) # get upper triangle part
+        to_drop = [c for c in upper_tri.columns if any(upper_tri[c] > correlation_threshold)]
+        keep = [c for c in upper_tri.columns if c not in to_drop]
+
+
+    # cols = list(df_org.columns) + cols
+    selected = keep + cols
     if verbose > 0:
         print("[feateng] Generated a total of %i additional features" % (len(feature_pool) - len(start_features)))
-    return df[cols], feature_pool
+        print("[feateng] Drop a total of %i features from the original set" % len(to_drop))
+    return df[selected]
