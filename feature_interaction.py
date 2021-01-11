@@ -42,7 +42,6 @@ def engineer_features(
                              "1/", "exp", "log", "abs", "sqrt", "^2", "^3", "1+", "1-", "sin", "cos", "exp-", "2^"
                              (first 7, i.e., up to ^3, are applied by default)
         -correlation_threshold: threshold for the correlation coeficient feature selection step.
-        -scaled: boolean whether data is already scaled or not
         - verbose: verbosity level (int; default: 0)
     Returns:
         - df: new DataFrame with all features in columns
@@ -76,6 +75,10 @@ def engineer_features(
         for c in start_features:
             if c not in df_org.columns:
                 raise ValueError("[feateng] start feature %r not in df_org.columns" % c)
+        dont_transform = [c for c in df_org.columns if c not in df_org[start_features].columns]
+        df_dont_transform = pd.DataFrame(df_org[dont_transform], columns=dont_transform)
+        df_org = df_org[start_features].copy()
+
     feature_pool = {c: sympy.symbols(colnames2symbols(c, i), real=True) for i, c in enumerate(start_features)}
     if max_steps < 1:
         if verbose > 0:
@@ -83,6 +86,7 @@ def engineer_features(
         return df_org, feature_pool
     # get a copy of the dataframe - this is where all the features will be added
     df = pd.DataFrame(df_org.copy(), dtype=np.float32)
+
 
     def apply_transformations(features_list):
         # feature transformations
@@ -266,17 +270,17 @@ def engineer_features(
         # check for correlated features again; this time with the start features
         corrs = dict(zip(cols, np.max(np.abs(np.dot(StandardScaler().fit_transform(df[cols]).T, StandardScaler().fit_transform(df_org))/df_org.shape[0]), axis=1)))
         cols = [c for c in cols if corrs[c] < correlation_threshold]
-
         # tentar fazer o teste de correlação nas variáveis originais, tem a parte do df_org que ainda tenho que ver
-        cor_matrix = df_org.corr().abs()
+        cor_matrix = df_org.astype('float64').corr().abs()
         upper_tri = cor_matrix.where(np.triu(np.ones(cor_matrix.shape),k=1).astype(np.bool)) # get upper triangle part
         to_drop = [c for c in upper_tri.columns if any(upper_tri[c] > correlation_threshold)]
         keep = [c for c in upper_tri.columns if c not in to_drop]
 
 
     # cols = list(df_org.columns) + cols
-    selected = keep + cols
+    selected = keep + cols if keep else list(df_org.columns) + cols
+    print('third:', cols)
     if verbose > 0:
         print("[feateng] Generated a total of %i additional features" % (len(feature_pool) - len(start_features)))
         print("[feateng] Drop a total of %i features from the original set" % len(to_drop))
-    return df[selected]
+    return df[selected].join(df_dont_transform)
