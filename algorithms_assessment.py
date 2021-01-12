@@ -24,7 +24,6 @@ class ComplexityCurves():
     etapa_pipeline - O padrão é -1 para a última etapa do processo, normalmente o algoritmo de ML. Mas é possível também acessar etapas intermediárias, por exemplo, as componentes de uma PCA.
 
     métodos:
-    table - Mostra a tabela com os resultados da validação cruzada
     complexity_curves - Plota o gráfico com a visualização das linhas de complexidade.
     '''
 
@@ -46,10 +45,12 @@ class ComplexityCurves():
         self.pipeline = pipeline
         self.metric_name = metric_name
         self.etapa_pipeline = etapa_pipeline
+        self.dataframe = None
 
     def __computation(self, param_values):
         guardar = []
         for param in param_values:
+            print(self.parametro, ' = ', param)
             # setar o hyperparametro do estimador
             self.estimator[self.etapa_pipeline].set_params(**{self.parametro: param}) if self.pipeline else self.estimator.set_params(**{self.parametro: param})
 
@@ -64,23 +65,18 @@ class ComplexityCurves():
             hyper = param
             guardar.append((hyper, treino, teste))
 
+            # printing results
+            std_treino = np.std(validacao_cruzada['train_score'])
+            std_teste = np.std(validacao_cruzada['test_score'])
+
+            print(f'Treino: {np.round(treino, 3)} | Validação: {np.round(teste, 3)}', end=' ') 
+            print(f'| std_treino: {np.round(std_treino)} | std_teste: {np.round(std_teste)}\n')
+
         return guardar
 
-    def table(self, param_values):
-
-        '''
-        Esse método a tabela com os resultados de treino e validação
-
-        argumentos:
-        param_values - lista com os valores ou faixa de valores dos hyper-parâmetros
-        '''
-        DataFrame = pd.DataFrame(self.__computation(param_values), 
-                     columns=[self.parametro,'Treino','Validação'])
-        return DataFrame
-
     def complexity_curves(self, param_values,
-                                                figsize=(8,5),
-                                                ylim=None):
+                                            figsize=(8,5),
+                                            ylim=None):
 
         '''
         Esse método cria a visualização
@@ -92,12 +88,12 @@ class ComplexityCurves():
         ylim - tupla com a faixa de valores para o eixo y
         '''
 
-        DataFrame = self.table(param_values)
-        melt = pd.melt(DataFrame, 
-                                     id_vars=self.parametro, 
-                                     value_vars=['Treino','Validação'], 
-                                     value_name='Score', 
-                                     var_name='Conjunto')
+        self.dataframe = pd.DataFrame(self.__computation(param_values), columns=[self.parametro,'Treino','Validação'])
+        melt = pd.melt(self.dataframe, 
+                                 id_vars=self.parametro, 
+                                 value_vars=['Treino','Validação'], 
+                                 value_name='Score', 
+                                 var_name='Conjunto')
 
         f, ax = plt.subplots(figsize=figsize)
         sn.pointplot(x=self.parametro, y='Score', hue='Conjunto', data=melt, ax=ax)
@@ -122,17 +118,16 @@ class LearningCurves():
     metric_name - Uma string representando o nome da métrica escolhida que será o título do gráfico.
 
     métodos:
-    table - Mostra a tabela com os resultados da validação cruzada
-    complexity_curves - Plota o gráfico com a visualização das linhas de complexidade.
+    learning_curves - Plota o gráfico com a visualização das linhas de complexidade.
     '''
 
     def __init__(self,X, y, 
-                            modelo, 
-                            validacao, 
-                            metrica, 
-                            passo, 
-                            embaralhar=False,
-                            metric_name='metric'):
+                 modelo, 
+                 validacao, 
+                 metrica, 
+                 passo, 
+                 embaralhar=False,
+                 metric_name='metric'):
 
         self.X = X
         self.y = y
@@ -142,6 +137,7 @@ class LearningCurves():
         self.passo = passo
         self.embaralhar = embaralhar
         self.metric_name = metric_name
+        self.dataframe = None
 
     def __computaion(self):
         if self.embaralhar:
@@ -149,31 +145,27 @@ class LearningCurves():
 
         guardar = []
         for each in range(self.passo, len(self.X), self.passo):    
-            validacao_cruzada = cross_validate(self.modelo, self.X[:each, :], self.y[:each],
-                                                                                scoring=self.metrica,
-                                                                                cv=self.validacao,
-                                                                                return_train_score=True,
-                                                                                n_jobs=-1)
+            validacao_cruzada = cross_validate(self.modelo, 
+                                               self.X.iloc[:each,:], 
+                                               self.y.iloc[:each],
+                                               scoring=self.metrica,
+                                               cv=self.validacao,
+                                               return_train_score=True,
+                                               n_jobs=-1)
             
             treino = np.mean(validacao_cruzada['train_score'])
             teste = np.mean(validacao_cruzada['test_score'])
             quantidade_exemplos = each
 
             guardar.append((quantidade_exemplos, treino, teste))
-
+            print(f'Amostras: {quantidade_exemplos}')
+            print(f'Treino: {np.round(treino, 3)} | Validação: {np.round(teste, 3)}\n') 
+            
         return guardar
 
-    def table(self):
-        dataframe = pd.DataFrame(self.__computaion(), 
-            columns=['Quantidade de Exemplos', 
-                            'Treino',
-                            'Validação'])
-
-        return dataframe
-
     def learning_curves(self,
-                                            figsize=(8,5),
-                                            ylim=None):
+                        figsize=(8,5),
+                        ylim=None):
 
         '''
         Esse método cria a visualização
@@ -184,19 +176,22 @@ class LearningCurves():
         ylim - tupla com a faixa de valores para o eixo y
         '''
 
-        melt = pd.melt(self.table(),
-                                     id_vars='Quantidade de Exemplos',
-                                     value_vars=['Treino','Validação'],
-                                     value_name='Score',
-                                     var_name='Conjunto')
+        self.dataframe = pd.DataFrame(self.__computaion(), columns=['Quantidade de Exemplos', 'Treino','Validação'])
+
+        melt = pd.melt(self.dataframe,
+                       id_vars='Quantidade de Exemplos',
+                       value_vars=['Treino','Validação'],
+                       value_name='Score',
+                       var_name='Conjunto')
 
         f, ax = plt.subplots(figsize=figsize)
         sn.pointplot(x='Quantidade de Exemplos',
-                                    y='Score', 
-                                    hue='Conjunto',
-                                    palette=('green','red'),
-                                    data=melt,
-                                    ax=ax)
-        ax.set_title(self.metric_name.title()) if not isinstance(self.metrica, str) else ax.set_title(self.metrica.title())
+                     y='Score', 
+                     hue='Conjunto',
+                     palette=('green','red'),
+                     data=melt,
+                     ax=ax)
+        ax.set_title(self.metric_name.title()) if not isinstance(self.metrica, str) \
+        else ax.set_title(self.metrica.title())
         ax.set(ylim=ylim)
  
