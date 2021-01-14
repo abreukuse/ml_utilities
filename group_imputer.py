@@ -23,6 +23,7 @@ class GroupImputer(BaseEstimator, TransformerMixin):
         self.grouping = grouping
         self.columns = columns
         self.strategy = strategy
+        self._dict_result = None
         
     def fit(self, X, y=None):
         method = np.median if self.strategy == 'median' else mode if self.strategy == 'mode' else np.mean
@@ -33,7 +34,7 @@ class GroupImputer(BaseEstimator, TransformerMixin):
             for column in self.columns:
                 imputer[column] = imputer[column].map(lambda x: x[0][0])
         
-        # é preciso verificar se algum grupo não possui nenhum valor e substituir os valores faltantes pela mediana de cada coluna
+        # é preciso verificar se algum grupo não possui nenhum valor e substituir os valores faltantes pela mediana geral de cada coluna
         if imputer.isnull().sum().sum() > 0:
             dici_impute = {column : imputer[column].aggregate(np.median) for column in imputer.columns if imputer[column].isnull().any()}
             imputer.fillna(dici_impute, inplace=True)

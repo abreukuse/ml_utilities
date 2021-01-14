@@ -20,7 +20,7 @@ class ComplexityCurves():
     metrica - Métrica escolhida para avaliação. Pode ser uma string como: 'accuracy', 'neg_mean_absolute_error' ou feito com a função make_scorer
     validacao - Validação cruzada, pode ser um número inteiro ou uma função; KFold, RepeatedKFold, etc.
     pipeline - Dafault 'False'. Deve ser colocado como 'True' se for usado uma pipeline.
-    metric_name - Uma string representando o nome da métrica escolhida que será o título do gráfico.
+    metric_name - Uma string representando o nome da métrica escolhida que será o título do gráfico quando for usado a função make_scorer.
     etapa_pipeline - O padrão é -1 para a última etapa do processo, normalmente o algoritmo de ML. Mas é possível também acessar etapas intermediárias, por exemplo, as componentes de uma PCA.
 
     métodos:
@@ -28,13 +28,13 @@ class ComplexityCurves():
     '''
 
     def __init__(self, X, y,
-                             estimator,
-                             parametro,
-                             metrica,
-                             validacao,
-                             pipeline=False,
-                             metric_name='metric',
-                             etapa_pipeline=-1):
+                 estimator,
+                 parametro,
+                 metrica,
+                 validacao,
+                 pipeline=False,
+                 metric_name='metric',
+                 etapa_pipeline=-1):
         
         self.X = X
         self.y = y
@@ -54,12 +54,14 @@ class ComplexityCurves():
             # setar o hyperparametro do estimador
             self.estimator[self.etapa_pipeline].set_params(**{self.parametro: param}) if self.pipeline else self.estimator.set_params(**{self.parametro: param})
 
-            validacao_cruzada = cross_validate(self.estimator, self.X, self.y, 
-                                                                                scoring=self.metrica, 
-                                                                                cv = self.validacao, 
-                                                                                return_train_score=True, 
-                                                                                n_jobs=-1)
-            
+            validacao_cruzada = cross_validate(self.estimator, 
+                                               self.X, 
+                                               self.y, 
+                                               scoring=self.metrica, 
+                                               cv = self.validacao, 
+                                               return_train_score=True, 
+                                               n_jobs=-1)
+
             treino = np.mean(validacao_cruzada['train_score'])
             teste = np.mean(validacao_cruzada['test_score']) 
             hyper = param
@@ -74,9 +76,10 @@ class ComplexityCurves():
 
         return guardar
 
-    def complexity_curves(self, param_values,
-                                            figsize=(8,5),
-                                            ylim=None):
+    def complexity_curves(self, 
+                          param_values,
+                          figsize=(8,5),
+                          ylim=None):
 
         '''
         Esse método cria a visualização
@@ -88,12 +91,14 @@ class ComplexityCurves():
         ylim - tupla com a faixa de valores para o eixo y
         '''
 
-        self.dataframe = pd.DataFrame(self.__computation(param_values), columns=[self.parametro,'Treino','Validação'])
+        self.dataframe = pd.DataFrame(self.__computation(param_values), 
+                                      columns=[self.parametro,'Treino','Validação'])
+
         melt = pd.melt(self.dataframe, 
-                                 id_vars=self.parametro, 
-                                 value_vars=['Treino','Validação'], 
-                                 value_name='Score', 
-                                 var_name='Conjunto')
+                       id_vars=self.parametro, 
+                       value_vars=['Treino','Validação'], 
+                       value_name='Score', 
+                       var_name='Conjunto')
 
         f, ax = plt.subplots(figsize=figsize)
         sn.pointplot(x=self.parametro, y='Score', hue='Conjunto', data=melt, ax=ax)
@@ -125,7 +130,7 @@ class LearningCurves():
                  modelo, 
                  validacao, 
                  metrica, 
-                 passo, 
+                 step_size, 
                  embaralhar=False,
                  metric_name='metric'):
 
@@ -134,7 +139,7 @@ class LearningCurves():
         self.modelo = modelo
         self.validacao = validacao
         self.metrica = metrica
-        self.passo = passo
+        self.step_size = step_size+1
         self.embaralhar = embaralhar
         self.metric_name = metric_name
         self.dataframe = None
@@ -144,10 +149,10 @@ class LearningCurves():
             self.X, self.y = shuffle(self.X, self.y)
 
         guardar = []
-        for each in range(self.passo, len(self.X), self.passo):    
+        for step in range(self.step_size, len(self.X), self.step_size):    
             validacao_cruzada = cross_validate(self.modelo, 
-                                               self.X.iloc[:each,:], 
-                                               self.y.iloc[:each],
+                                               self.X.iloc[:step,:], 
+                                               self.y.iloc[:step],
                                                scoring=self.metrica,
                                                cv=self.validacao,
                                                return_train_score=True,
@@ -155,7 +160,7 @@ class LearningCurves():
             
             treino = np.mean(validacao_cruzada['train_score'])
             teste = np.mean(validacao_cruzada['test_score'])
-            quantidade_exemplos = each
+            quantidade_exemplos = step
 
             guardar.append((quantidade_exemplos, treino, teste))
             print(f'Amostras: {quantidade_exemplos}')
