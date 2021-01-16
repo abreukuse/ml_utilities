@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
-from scipy.stats import mode
-
 from sklearn.base import BaseEstimator, TransformerMixin
+
+def mode(a):
+    u, c = np.unique(a, return_counts=True)
+    return u[c.argmax()]
 
 class GroupImputer(BaseEstimator, TransformerMixin):
     '''
@@ -24,19 +26,22 @@ class GroupImputer(BaseEstimator, TransformerMixin):
         self.columns = columns
         self.strategy = strategy
         self._dict_result = None
-        
+            
     def fit(self, X, y=None):
+        categoricals = X[self.columns].select_dtypes('object').columns
+        if len(categoricals) > 0:
+            X[categoricals] = np.where(X[categoricals].isnull(), X[categoricals].astype(str), X[categoricals])
+
         method = np.median if self.strategy == 'median' else mode if self.strategy == 'mode' else np.mean
         imputer = X.groupby([self.grouping])[self.columns].aggregate(method)
 
-        # se a moda for escolhida é necessário um passo a mais de processamento
-        if self.strategy == 'mode':
-            for column in self.columns:
-                imputer[column] = imputer[column].map(lambda x: x[0][0])
+        if any(imputer == 'nan'):
+            array = np.where(imputer=='nan', np.nan, imputer)
+            imputer = pd.DataFrame(array, index=imputer.index, columns=imputer.columns)
         
         # é preciso verificar se algum grupo não possui nenhum valor e substituir os valores faltantes pela mediana geral de cada coluna
         if imputer.isnull().sum().sum() > 0:
-            dici_impute = {column : imputer[column].aggregate(np.median) for column in imputer.columns if imputer[column].isnull().any()}
+            dici_impute = {column : imputer[column].aggregate(method) for column in imputer.columns if imputer[column].isnull().any()}
             imputer.fillna(dici_impute, inplace=True)
 
         self._dict_result = imputer.to_dict(orient='index')

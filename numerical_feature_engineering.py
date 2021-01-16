@@ -279,7 +279,6 @@ def engineer_features(
 
     # cols = list(df_org.columns) + cols
     selected = keep + cols if keep else list(df_org.columns) + cols
-    print('third:', cols)
     if verbose > 0:
         print("[feateng] Generated a total of %i additional features" % (len(feature_pool) - len(start_features)))
         print("[feateng] Drop a total of %i features from the original set" % len(to_drop))
