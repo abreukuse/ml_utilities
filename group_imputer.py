@@ -1,10 +1,15 @@
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
+from collections import Counter
 
 def mode(a):
-    u, c = np.unique(a, return_counts=True)
-    return u[c.argmax()]
+    data = Counter(a)
+    data_list = dict(data)
+    max_value = max(data.values())
+    mode_val = [item for item, freq in data.items() if freq == max_value][0]
+    if mode_val == 'nan': mode_val = np.nan
+    return mode_val
 
 class GroupImputer(BaseEstimator, TransformerMixin):
     '''
@@ -28,20 +33,13 @@ class GroupImputer(BaseEstimator, TransformerMixin):
         self._dict_result = None
             
     def fit(self, X, y=None):
-        categoricals = X[self.columns].select_dtypes('object').columns
-        if len(categoricals) > 0:
-            X[categoricals] = np.where(X[categoricals].isnull(), X[categoricals].astype(str), X[categoricals])
 
-        method = np.median if self.strategy == 'median' else mode if self.strategy == 'mode' else np.mean
+        method = np.nanmedian if self.strategy == 'median' else mode if self.strategy == 'mode' else np.mean
         imputer = X.groupby([self.grouping])[self.columns].aggregate(method)
-
-        if any(imputer == 'nan'):
-            array = np.where(imputer=='nan', np.nan, imputer)
-            imputer = pd.DataFrame(array, index=imputer.index, columns=imputer.columns)
         
         # é preciso verificar se algum grupo não possui nenhum valor e substituir os valores faltantes pela mediana geral de cada coluna
         if imputer.isnull().sum().sum() > 0:
-            dici_impute = {column : imputer[column].aggregate(method) for column in imputer.columns if imputer[column].isnull().any()}
+            dici_impute = {column : method(imputer[column]) for column in imputer.columns if imputer[column].isnull().any()}
             imputer.fillna(dici_impute, inplace=True)
 
         self._dict_result = imputer.to_dict(orient='index')
