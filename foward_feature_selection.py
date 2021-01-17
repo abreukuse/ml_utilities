@@ -6,13 +6,19 @@ def foward_feature_selection(X_train,
                              y_test, 
                              model,
                              metric, 
-                             columns=None,
+                             analyse_together=None,
                              steps=20,
                              label=1):
     aceitas = []
     valor_maior_score = 0
 
-    variables = columns if columns else [[item] for item in X_train.columns]
+    if analyse_together:
+        analyse_together_flatten = [item_alone for items_together in analyse_together for item_alone in items_together]
+        analyse_alone = [[item] for item in X_train.columns if item not in analyse_together_flatten]
+        variables = analyse_alone + analyse_together
+    else:
+        variables = [[item] for item in X_train.columns]
+
     for step in range(steps):
         var_maior_score = None
         for variable in variables:
