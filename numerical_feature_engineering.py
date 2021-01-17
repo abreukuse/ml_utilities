@@ -1,4 +1,7 @@
 #-*- coding: utf-8 -*-
+# The majority os this module I took from the autofeat lybrary: https://github.com/cod3licious/autofeat
+# which is a automated feature engineer tool.
+# I just made some minor changes in order to fulfill my needs, like implement fit and transform capabilities.
 
 from builtins import str
 import re
@@ -15,20 +18,15 @@ from sklearn.base import BaseEstimator, TransformerMixin
 class NumericalFeatureEngineering(BaseEstimator, TransformerMixin):
 
     def __init__(self,
-                 # X,
                  start_features=None,
                  max_steps=2,
                  transformations=("1/", "exp", "log", "abs", "sqrt", "^2", "^3"),
-                 # correlation_threshold=0.9,
                  verbose=0):
 
-        # self.X = X
         self.start_features = start_features
         self.max_steps = max_steps
         self.transformations = transformations
-        # self.correlation_threshold = correlation_threshold
         self.verbose = verbose
-        # self.X = None
         self.input_data = None
         self.df_fit_stage = None
         self.variables_to_persist = None
@@ -57,7 +55,6 @@ class NumericalFeatureEngineering(BaseEstimator, TransformerMixin):
             - verbose: verbosity level (int; default: 0)
         Returns:
             - df: new DataFrame with all features in columns
-            - feature_pool: dict with {col: sympy formula} formulas to generate each feature
         """
         # initialize the feature pool with columns from the dataframe
 
