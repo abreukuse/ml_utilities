@@ -2,6 +2,7 @@
 
 # The majority of this module I took from the autofeat lybrary: https://github.com/cod3licious/autofeat
 # which is an automated feature engineer tool.
+# The original code is here: https://github.com/cod3licious/autofeat/blob/master/autofeat/feateng.py
 # I simply made some minor changes in order to fulfill my needs. Like implement fit and transform capabilities.
 
 from builtins import str
