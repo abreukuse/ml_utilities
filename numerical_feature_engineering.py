@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 
 # The majority of this module I took from the autofeat lybrary: https://github.com/cod3licious/autofeat
-# which is a automated feature engineer tool.
+# which is an automated feature engineer tool.
 # I simply made some minor changes in order to fulfill my needs, like implement fit and transform capabilities.
 
 from builtins import str
