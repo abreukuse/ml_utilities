@@ -2,7 +2,7 @@
 
 # The majority of this module I took from the autofeat lybrary: https://github.com/cod3licious/autofeat
 # which is an automated feature engineer tool.
-# I simply made some minor changes in order to fulfill my needs, like implement fit and transform capabilities.
+# I simply made some minor changes in order to fulfill my needs. Like implement fit and transform capabilities.
 
 from builtins import str
 import re
@@ -17,6 +17,35 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.base import BaseEstimator, TransformerMixin
 
 class NumericalFeatureEngineering(BaseEstimator, TransformerMixin):
+    """
+    Given a DataFrame with original features, perform the feature engineering routine for max_steps.
+    It starts with a transformation of the original features (applying log, ^2, sqrt, etc.),
+    then in the next step, the features are combined (x+y, x*y, ...), and in further steps, the resulting
+    features are again transformed and combinations of the resulting features are computed.
+
+    Inputs:
+        - start_features: list with column names for X with features that should be considered for expansion
+                            (default: None --> all columns)
+        - max_steps: how many feature engineering steps should be performed. Default is 3, this produces:
+            Step 1: transformation of original features
+            Step 2: first combination of features
+            Step 3: transformation of new features
+            (Step 4: combination of old and new features)
+            --> with 3 original features, after 4 steps you will already end up with around 200k features!
+        - transformations: list of transformations that should be applied; possible elements:
+                             "1/", "exp", "log", "abs", "sqrt", "^2", "^3", "1+", "1-", "sin", "cos", "exp-", "2^"
+                             (first 7, i.e., up to ^3, are applied by default)
+        - verbose: verbosity level (int; default: 0)
+
+    Attributes:
+        - input_data: original data passed to fit method
+        - df_fit_stage: data transformed after fit is applied
+        - variables_to_persist: what variables will be includded in the final dataset
+
+    Methods:
+        - fit: fit the data in order to proceed with the transformation considering the correlation between variables in the training set
+        - transform: transform the data based on the results of the fit process.
+    """
 
     def __init__(self,
                  start_features=None,
@@ -32,33 +61,8 @@ class NumericalFeatureEngineering(BaseEstimator, TransformerMixin):
         self.df_fit_stage = None
         self.variables_to_persist = None
 
-    def engineer_features(self, X, y=None, correlation_threshold=0.9):
-        """
-        Given a DataFrame with original features, perform the feature engineering routine for max_steps.
-        It starts with a transformation of the original features (applying log, ^2, sqrt, etc.),
-        then in the next step, the features are combined (x+y, x*y, ...), and in further steps, the resulting
-        features are again transformed and combinations of the resulting features are computed.
-
-        Inputs:
-            - X: pandas DataFrame with original features in columns
-            - start_features: list with column names for X with features that should be considered for expansion
-                                (default: None --> all columns)
-            - max_steps: how many feature engineering steps should be performed. Default is 3, this produces:
-                Step 1: transformation of original features
-                Step 2: first combination of features
-                Step 3: transformation of new features
-                (Step 4: combination of old and new features)
-                --> with 3 original features, after 4 steps you will already end up with around 200k features!
-            - transformations: list of transformations that should be applied; possible elements:
-                                 "1/", "exp", "log", "abs", "sqrt", "^2", "^3", "1+", "1-", "sin", "cos", "exp-", "2^"
-                                 (first 7, i.e., up to ^3, are applied by default)
-            -correlation_threshold: threshold for the correlation coeficient feature selection step.
-            - verbose: verbosity level (int; default: 0)
-        Returns:
-            - df: new DataFrame with all features in columns
-        """
-        # initialize the feature pool with columns from the dataframe
-
+    def __engineer_features(self, X, y=None, correlation_threshold=0.9):
+        
         def colnames2symbols(c, i=0):
             # take a messy column name and transform it to something sympy can handle
             # worst case: i is the number of the features
@@ -79,18 +83,21 @@ class NumericalFeatureEngineering(BaseEstimator, TransformerMixin):
             denom = reduce(op.mul, range(1, r + 1), 1)
             return numer // denom
 
+        # initialize the feature pool with columns from the dataframe
         if not self.start_features:
-            self.start_features = X.columns
+            variables = X.columns
+            dont_transform = []
             df_dont_transform = pd.DataFrame()
         else:
             for c in self.start_features:
                 if c not in X.columns:
                     raise ValueError("[feateng] start feature %r not in X.columns" % c)
-            dont_transform = [c for c in X.columns if c not in X[self.start_features].columns]
+            variables = self.start_features
+            dont_transform = [c for c in X.columns if c not in X[variables].columns]
             df_dont_transform = pd.DataFrame(X[dont_transform], columns=dont_transform)
-            X = X[self.start_features].copy()
+            X = X[variables].copy()
 
-        feature_pool = {c: sympy.symbols(colnames2symbols(c, i), real=True) for i, c in enumerate(self.start_features)}
+        feature_pool = {c: sympy.symbols(colnames2symbols(c, i), real=True) for i, c in enumerate(variables)}
         if self.max_steps < 1:
             if self.verbose > 0:
                 print("[feateng] Warning: no features generated for self.max_steps < 1.")
@@ -273,7 +280,7 @@ class NumericalFeatureEngineering(BaseEstimator, TransformerMixin):
 
         # sort out all features that are just additions on the highest level or correlated with more basic features
         if self.verbose > 0:
-            print("[feateng] Generated altogether %i new features in %i steps" % (len(feature_pool) - len(self.start_features), self.max_steps))
+            print("[feateng] Generated altogether %i new features in %i steps" % (len(feature_pool) - len(variables), self.max_steps))
             print("[feateng] Removing correlated features, as well as additions at the highest level")
         feature_pool = {c: feature_pool[c] for c in feature_pool if c in uncorr_features and not feature_pool[c].func == sympy.add.Add}
         cols = [c for c in list(df.columns) if (c in feature_pool) and (c not in X.columns)]  # categorical cols not in feature_pool
@@ -282,7 +289,7 @@ class NumericalFeatureEngineering(BaseEstimator, TransformerMixin):
             corrs = dict(zip(cols, np.max(np.abs(np.dot(StandardScaler().fit_transform(df[cols]).T, StandardScaler().fit_transform(X))/X.shape[0]), axis=1)))
             cols = [c for c in cols if corrs[c] < correlation_threshold]
 
-            # tentar fazer o teste de correlação nas variáveis originais, tem a parte do X que ainda tenho que ver
+            # correlation between original variables
             cor_matrix = X.astype('float64').corr().abs() # corelation matrix
             upper_tri = cor_matrix.where(np.triu(np.ones(cor_matrix.shape),k=1).astype(np.bool)) # get upper triangle part
             to_drop = [c for c in upper_tri.columns if any(upper_tri[c] > correlation_threshold)]
@@ -291,26 +298,36 @@ class NumericalFeatureEngineering(BaseEstimator, TransformerMixin):
             keep = []
             to_drop = []
 
-        selected = keep + cols if keep else list(X.columns) + cols # talvez o selected poderia ser usado para pegar as colunas, mas isso é pra depois
+        selected = keep + cols if keep else list(variables) + cols
         if self.verbose > 0:
-            print("[feateng] Generated a total of %i additional features" % (len(feature_pool) - len(self.start_features)))
-            print("[feateng] Drop a total of %i features from the original set" % len(to_drop))
+            print("[feateng] Generated a total of %i additional features" % (len(feature_pool) - len(variables)))
+            print("[feateng] Drop a total of %i features %s from the original set" % (len(to_drop), to_drop))
         
-        return df[selected].join(df_dont_transform)
+        final_df = df[selected].join(df_dont_transform)
+
+        return final_df
 
     def fit(self, X, y=None, correlation_threshold=0.9):
-        self.start_features = None
+        '''
+        Inputs:
+        - X: pandas DataFrame with original features in columns
+        - y: No need to be passed. It´s here only for compatibility with sklearn pipelines
+        - correlation_threshold: threshold to be choosed for eliminating correlated features
+        '''
         self.input_data = X
-        self.df_fit_stage = self.engineer_features(X, y=None, correlation_threshold=correlation_threshold)
+        self.df_fit_stage = self.__engineer_features(X, y=None, correlation_threshold=correlation_threshold)
         self.variables_to_persist = self.df_fit_stage.columns
 
         return self
 
     def transform(self, X):
-        self.start_features = None
+        '''
+        Inputs:
+        - X: pandas DataFrame with original features in columns
+        '''
         # check if data to be tranaformed was used in the fit process, so there´s no reason to reapet it.
         if (list(X.index) == list(self.input_data.index)) and all(X.columns == self.input_data.columns) and not (len(X.compare(self.input_data)) > 1):
             return self.df_fit_stage
         else:
-            df_transform_stage = self.engineer_features(X, y=None, correlation_threshold=1)
+            df_transform_stage = self.__engineer_features(X, y=None, correlation_threshold=1)
             return df_transform_stage[self.variables_to_persist]
