@@ -139,7 +139,7 @@ class LearningCurves():
         self.modelo = modelo
         self.validacao = validacao
         self.metrica = metrica
-        self.step_size = step_size+1
+        self.step_size = step_size
         self.embaralhar = embaralhar
         self.metric_name = metric_name
         self.dataframe = None
@@ -149,7 +149,7 @@ class LearningCurves():
             self.X, self.y = shuffle(self.X, self.y)
 
         guardar = []
-        for step in range(self.step_size, len(self.X), self.step_size):    
+        for step in range(self.step_size, len(self.X)+1, self.step_size):    
             validacao_cruzada = cross_validate(self.modelo, 
                                                self.X.iloc[:step,:], 
                                                self.y.iloc[:step],
