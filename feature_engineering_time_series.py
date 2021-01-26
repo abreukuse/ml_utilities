@@ -43,10 +43,10 @@ def seasonal_features(df,
     for feature in features:
         attribute = getattr(obj, feature) if feature is not 'week' else getattr(obj.isocalendar(), feature)
         if cyclical:
-            df[f'{feature}_cos'] = np.cos(2 * np.pi * attribute/attribute.max())
-            df[f'{feature}_sin'] = np.sin(2 * np.pi * attribute/attribute.max())
+            df[f'{date_column}_{feature}_cos'] = np.cos(2 * np.pi * attribute/attribute.max())
+            df[f'{date_column}_{feature}_sin'] = np.sin(2 * np.pi * attribute/attribute.max())
         else:
-            df[feature] = attribute
+            df[f'{date_column}_{feature}'] = attribute
     
     if deliver: return df
 
