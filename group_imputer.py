@@ -3,14 +3,17 @@ import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from collections import Counter
 
+from collections import Counter
 def mode(a):
     data = Counter(a)
     data_list = dict(data)
-    max_value = max(data.values())
-    mode_val = [item for item, freq in data.items() if freq == max_value][0]
-    if mode_val == 'nan': mode_val = np.nan
-    return mode_val
+    sort_values = sorted(data.values(), reverse=True)
+    mode_val = [item for item, freq in data.items() if freq == sort_values[0]][0]
 
+    if pd.isna(mode_val) and (len(sort_values) > 1): 
+        mode_val = [item for item, freq in data.items() if freq == sort_values[1]][0]
+
+    return mode_val
 class GroupImputer(BaseEstimator, TransformerMixin):
     '''
     Fazer imputação de dados faltantes de acordo com um agrupamento
