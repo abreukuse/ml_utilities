@@ -6,9 +6,9 @@ from functools import reduce
 import pandas as pd
 from sklearn.preprocessing import PolynomialFeatures
 
-def categorical_interactions(X, variables, order=2):
+def categorical_interactions(X, variables='all', order=2):
     X = X.copy()
-    df = X[variables]
+    df = X[variables] if variables != 'all' else X
     all_combinations = []
     order = len(df.columns) if order == 'all' else order
 
@@ -29,13 +29,15 @@ def categorical_interactions(X, variables, order=2):
 
         return X
 
-# tenho que testar essa função para ver se transforma os dados de entrada
-def numerical_interactions(X, variables, interaction_only=True):
+
+def numerical_interactions(X, variables='all', degree=2, interaction_only=True):
     X = X.copy()
-    len_variables = len(variables)
-    X_sliced = X[variables]
-    interactions = PolynomialFeatures(interaction_only=interaction_only, include_bias=False)
+    X_sliced = X[variables] if variables != 'all' else X
+    len_variables = len(X_sliced.columns)
+    interactions = PolynomialFeatures(degree=degree, interaction_only=interaction_only, include_bias=False)
     interactions_array = interactions.fit_transform(X_sliced)
     new_columns = interactions.get_feature_names(X_sliced.columns)[len_variables:]
     df = pd.DataFrame(interactions_array[:, len_variables:], index=X.index, columns=new_columns)
     X = X.join(df)
+
+    return X
