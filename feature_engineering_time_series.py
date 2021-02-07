@@ -79,11 +79,14 @@ def lagging_features(df,
 
     if lags:
         for lag in lags:
-            df[f'lag_{target}_{lag}'] = df.groupby([group_by])[target].shift(lag) if group_by else df[target].shift(lag)
+            df[f'lag_{target}_{lag}'] = df.groupby([group_by])[target].shift(lag) if group_by \
+            else df[target].shift(lag)
 
     if lags_diff:
+        shift = np.min(lags)
         for diff in lags_diff:
-            df[f'lag_diff_{target}_{diff}'] = df.groupby([group_by])[target].shift().diff(diff) if group_by else df[target].shift().diff(diff)
+            df[f'lag_diff_{target}_{diff}'] = df.groupby([group_by])[target].shift(shift).diff(diff) if group_by \
+            else df[target].shift(shift).diff(diff)
             
     if copy: return df
 
