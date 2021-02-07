@@ -54,8 +54,10 @@ def seasonal_features(df,
 def lagging_features(df, 
                      target, 
                      lags=None, 
-                     lags_diff=None, 
+                     lags_diff=None,
+                     lags_pct_change=None, 
                      group_by=None,
+                     initial_period=1,
                      copy=False):
     '''
     Generates lagged features from a time series
@@ -82,14 +84,14 @@ def lagging_features(df,
             df[f'lag_{target}_{lag}'] = df.groupby([group_by])[target].shift(lag) if group_by \
             else df[target].shift(lag)
 
+    shift = np.min(lags) if lags else initial_period
+
     if lags_diff:
-        shift = np.min(lags)
         for diff in lags_diff:
             df[f'lag_diff_{target}_{diff}'] = df.groupby([group_by])[target].shift(shift).diff(diff) if group_by \
             else df[target].shift(shift).diff(diff)
 
     if lags_pct_change:
-        shift = np.min(lags)
         for pct in lags_pct_change:
             df[f'pct_chance_{target}_{pct}'] = df.groupby([group_by])[target].shift(shift).pct_change(pct) if group_by \
             else df[target].shift(shift).pct_change(pct)
