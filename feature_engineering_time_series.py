@@ -1,11 +1,72 @@
 import pandas as pd
 import numpy as np
 
+def __time_to_holidays(df, 
+                       date_column,
+                       static_holidays=None,
+                       dynamic_holidays=None):
+
+    """This function is used inside the 'seasonal_features' function and it creates features related to holidays."""
+
+    map_time = {'days':'D',
+                'weeks':'W',
+                'months':'M',
+                'years':'Y',
+                'hours':'h',
+                'minutes':'m',
+                'seconds':'s'}
+
+    map_weekday = {'Monday':0,
+                   'Tuesday':1,
+                   'Wednesday':2,
+                   'Thursday':3,
+                   'Friday':4,
+                   'Saturday':5,
+                   'Sunday':6}
+
+    map_week = {'first':0,
+                'second':1,
+                'third':2,
+                'fourth':3,
+                'last':'last'}
+
+    if static_holidays:
+        for key, values in static_holidays.items():
+            holiday_name = key[0]
+            holiday_date = key[1]
+            date = df[date_column].apply(lambda x: pd.to_datetime(f'{x.year}-{holiday_date}', format='%Y-%B-%d'))
+            for value in values:
+                df[f'{value}_to_{holiday_name}'] = (df[date_column] - date)/np.timedelta64(1, map_time[value])
+        
+    if dynamic_holidays:
+        for key, values in dynamic_holidays.items():
+
+                week = key[-1]
+                holiday_name = key[0]
+                month = key[1]
+                week_day= key[2]
+
+                if week != 'last':
+                    week_of_month = pd.tseries.offsets.WeekOfMonth(week=map_week[week], weekday=map_weekday[week_day])
+                    date = df[date_column].apply(lambda x: week_of_month.apply(pd.to_datetime(f'{x.year}-{month}', format='%Y-%B')))
+
+                    for value in values:
+                        df[f'{value}_to_{holiday_name}'] = (df[date_column] - date)/np.timedelta64(1, map_time[value])
+                else:
+                    last_week_of_month = pd.tseries.offsets.LastWeekOfMonth(weekday=map_weekday[week_day])
+                    date  = df[date_column].apply(lambda x: last_week_of_month.apply(pd.to_datetime(f'{x.year}-{month}', format='%Y-%B')))
+
+                    for value in values:
+                        df[f'{value}_to_{holiday_name}'] = (df[date_column] - date)/np.timedelta64(1, map_time[value])
+
+
 def seasonal_features(df, 
                       date_column, 
                       which_ones='all', 
                       cyclical=False,
-                      copy=False):
+                      holidays=False,
+                      copy=False,
+                      **kwargs):
     '''
     Generates seasonal features from a time series
     -------------------------------
@@ -20,10 +81,21 @@ def seasonal_features(df,
                             ['day','quarter','month','weekday','dayofyear','week','hour','minute','second'].
                             Default 'all'. All the features will be created.
 
-    cyclical: Boolean default 'False'. Set 'True' in order to produce sine and cosine conversion.
+    cyclical: Boolean, default 'False'. Set 'True' in order to produce sine and cosine conversion.
+
+    holidays: Boolean, default 'False'. If True, it gives the capability to include holidays or any other specific date.
+              In order to do that you need to provide two other arguments {static_holidays, dynamic_holidays} to the function as the example below.
+
+                time_periods = ['days','weeks','months','years'] # it can also include: hours, minutes, seconds if applicable.
+
+                static_holidays = {('christmas', 'December-25'): time_periods,
+                                   ('4-of-July', 'July-04'): time_periods}
+
+                dynamic_holidays = {('black-friday', 'November', 'Friday', 'fourth'): time_periods,
+                                    ('fathers-day', 'June', 'Sunday', 'third'): time_periods}
 
     copy: Boolean. Default 'False' for the changes to occur in the same dataframe provided. 
-                     Set 'True' in order to return the result in a new dataframe.
+          Set 'True' in order to return the result in a new dataframe.
     '''
 
     if copy: df = df.copy()
@@ -47,6 +119,9 @@ def seasonal_features(df,
             df[f'{date_column}_{feature}_sin'] = np.sin(2 * np.pi * attribute/attribute.max())
         else:
             df[f'{date_column}_{feature}'] = attribute
+
+    if holidays:
+        __time_to_holidays(df, date_column, **kwargs)
     
     if copy: return df
 
@@ -69,10 +144,17 @@ def lagging_features(df,
     target: String referring to the target variable.
 
     lags: List containing integer of which lags to include as features.
+          The minimum value of the lags will be used to shift the other features below.
 
     lags_diff: List with integers of the lag differences to be included as features.
 
+    lags_pct_change: List with integers for the calculation of the percentage change of previous values. Be carefull with zero values.
+
     group_by: String with the column name referring the groups to be formed in order to generate separated features for each group.
+
+    initial_period: Integer. Periods to shift the features created. Only needed if the lags were not set.
+                    Default: 1, which means the features will be shifted one period ahead of time.
+                    If the lags were provided the minimum value of the lags will be used as the initial_period.
 
     copy: Boolean. Default 'False' for the changes to occur in the same dataframe provided. 
                      Set 'True' in order to return the result in a new dataframe.
