@@ -7,7 +7,7 @@ sn.set_style('darkgrid')
 from sklearn.utils import shuffle
 from sklearn.model_selection import cross_validate
 
-class ComplexityCurves():
+class ValidationCurves():
 
     '''
     Avaliador da performance de um modelo de aprendizado de máquina conforme algum hyper-parâmetro vai sendo alterado.
@@ -76,7 +76,7 @@ class ComplexityCurves():
 
         return guardar
 
-    def complexity_curves(self, 
+    def validation_curves(self, 
                           param_values,
                           figsize=(8,5),
                           ylim=None):
