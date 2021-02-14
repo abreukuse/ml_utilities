@@ -18,7 +18,7 @@ def mode(a):
 
 class GroupImputer(BaseEstimator, TransformerMixin):
     '''
-    Fazer imputação de dados faltantes de acordo com um agrupamento
+    Data missing imputation according to a grouping.
     ---------------------------------
 
     parameters:
