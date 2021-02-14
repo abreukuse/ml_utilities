@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from collections import Counter
 
-from collections import Counter
+
 def mode(a):
     data = Counter(a)
     data_list = dict(data)
@@ -14,18 +14,20 @@ def mode(a):
         mode_val = [item for item, freq in data.items() if freq == sort_values[1]][0]
 
     return mode_val
+
+
 class GroupImputer(BaseEstimator, TransformerMixin):
     '''
     Fazer imputação de dados faltantes de acordo com um agrupamento
     ---------------------------------
 
-    parâmetros
+    parameters:
 
-    grouping: Coluna categórica com os níveis que formarão os grupos
+    grouping: Categorical variable with levels that will formed the groups.
 
-    columns: lista contendo quais colunas numéricas devem ser imputadas
+    columns: list containing which numerical variables should be imputed.
 
-    strategy: Que estratégia de imputação deve ser implementada. Opções: {'mean', 'median', 'mode'}. Padrão 'mean'.
+    strategy: What imputation strategy must be implemented. Options: {'mean', 'median', 'mode'}. Default 'mean'.
     '''
 
     def __init__(self, grouping, columns, strategy = 'mean'):
@@ -40,7 +42,8 @@ class GroupImputer(BaseEstimator, TransformerMixin):
         method = np.nanmedian if self.strategy == 'median' else mode if self.strategy == 'mode' else np.mean
         imputer = X.groupby([self.grouping])[self.columns].aggregate(method)
         
-        # é preciso verificar se algum grupo não possui nenhum valor e substituir os valores faltantes pela mediana geral de cada coluna
+        # There´s a need to verify if in some grouping there is no value, and then, 
+        # fill the missing values with the statistic calculated in the whole column disregarding the grouping.
         if imputer.isnull().sum().sum() > 0:
             dici_impute = {column : method(imputer[column]) for column in imputer.columns if imputer[column].isnull().any()}
             imputer.fillna(dici_impute, inplace=True)
