@@ -10,55 +10,65 @@ from sklearn.model_selection import cross_validate
 class ValidationCurves():
 
     '''
-    Avaliador da performance de um modelo de aprendizado de máquina conforme algum hyper-parâmetro vai sendo alterado.
+    Assessment of the performace of machine learning models.
 
-    argumentos:
-    X - Pandas dataframe ou numpy array com os atributos.
-    y - Atributo alvo.
-    modelos - Lista com o conjunto de algoritmos ou pipelines a serem testados.
-    parametro - String com nome do hyper-parâmetro que será avaliado.
-    metrica - Métrica escolhida para avaliação. Pode ser uma string como: 'accuracy', 'neg_mean_absolute_error' ou feito com a função make_scorer
-    validacao - Validação cruzada, pode ser um número inteiro ou uma função; KFold, RepeatedKFold, etc.
-    pipeline - Dafault 'False'. Deve ser colocado como 'True' se for usado uma pipeline.
-    metric_name - Uma string representando o nome da métrica escolhida que será o título do gráfico quando for usado a função make_scorer.
-    etapa_pipeline - O padrão é -1 para a última etapa do processo, normalmente o algoritmo de ML. Mas é possível também acessar etapas intermediárias, por exemplo, as componentes de uma PCA.
+    parameters:
 
-    métodos:
-    complexity_curves - Plota o gráfico com a visualização das linhas de complexidade.
+    X - Pandas dataframe.
+
+    y - target.
+
+    estimator - The machine learning algorithm choosed.
+
+    hyperparameter - String with the name of the hyperparameter that will be evaluated.
+
+    metric - Metric choosed for the assessment. It can be a string like: 'accuracy', 'neg_mean_absolute_error' or 
+             build with the make_scorer function.
+
+    validation - cross validation, it can be a integer number or a function like: KFold, RepeatedKFold, etc.
+
+    pipeline - Dafault 'False'. it need to be set as 'True' if a pipeline is used.
+
+    metric_name - String representing the name of the choosed metric. 
+                  It will be the title of the plot when thre make_scorer function is used.
+
+    pipeline_step - The defalut is -1 for the last step in the process, usualy the ML algorithm. 
+                    But it is possible to access the intermediarie steps, for instance, the components of a PCA.
+
+    method:
+    validation_curves - Plot the graph with the conplexity lines visualization.
     '''
 
     def __init__(self, X, y,
                  estimator,
-                 parametro,
-                 metrica,
-                 validacao,
+                 hyperparameter,
+                 metric,
+                 validation,
                  pipeline=False,
                  metric_name='metric',
-                 etapa_pipeline=-1):
+                 pipeline_step=-1):
         
         self.X = X
         self.y = y
         self.estimator = estimator
-        self.parametro = parametro
-        self.metrica = metrica
-        self.validacao = validacao
+        self.hyperparameter = hyperparameter
+        self.metric = metric
+        self.validation = validation
         self.pipeline = pipeline
         self.metric_name = metric_name
-        self.etapa_pipeline = etapa_pipeline
-        self.dataframe = None
+        self.pipeline_step = pipeline_step
+        self.table = None
 
     def __computation(self, param_values):
         guardar = []
         for param in param_values:
-            print(self.parametro, ' = ', param)
-            # setar o hyperparametro do estimador
-            self.estimator[self.etapa_pipeline].set_params(**{self.parametro: param}) if self.pipeline else self.estimator.set_params(**{self.parametro: param})
+            self.estimator[self.pipeline_step].set_params(**{self.hyperparameter: param}) if self.pipeline else self.estimator.set_params(**{self.hyperparameter: param})
 
             validacao_cruzada = cross_validate(self.estimator, 
                                                self.X, 
                                                self.y, 
-                                               scoring=self.metrica, 
-                                               cv = self.validacao, 
+                                               scoring=self.metric, 
+                                               cv = self.validation, 
                                                return_train_score=True, 
                                                n_jobs=-1)
 
@@ -67,12 +77,8 @@ class ValidationCurves():
             hyper = param
             guardar.append((hyper, treino, teste))
 
-            # printing results
-            std_treino = np.std(validacao_cruzada['train_score'])
-            std_teste = np.std(validacao_cruzada['test_score'])
-
-            print(f'Treino: {np.round(treino, 3)} | Validação: {np.round(teste, 3)}', end=' ') 
-            print(f'| std_treino: {np.round(std_treino)} | std_teste: {np.round(std_teste)}\n')
+            print(self.hyperparameter, ' = ', param)
+            print(f'Train: {np.round(treino, 3)} | Validation: {np.round(teste, 3)}\n')
 
         return guardar
 
@@ -82,79 +88,87 @@ class ValidationCurves():
                           ylim=None):
 
         '''
-        Esse método cria a visualização
-        das curvas de complexidade de treino e validação
+        This method generates the plot
 
-        argumentos:
-        param_values - lista com os valores ou faixa de valores dos hyper-parâmetros
-        figsize - tupla que determina a altura e largura de cada gráfico 
-        ylim - tupla com a faixa de valores para o eixo y
+        parameters:
+        param_values - list containing the hyperparameters values to be tested.
+        figsize - tuple that determines the height and width of the plot. 
+        ylim - tuple for the range of values in the y axis.
         '''
+        
+        self.table = pd.DataFrame(self.__computation(param_values), 
+                                  columns=[self.hyperparameter,'Train','Validation'])
 
-        self.dataframe = pd.DataFrame(self.__computation(param_values), 
-                                      columns=[self.parametro,'Treino','Validação'])
-
-        melt = pd.melt(self.dataframe, 
-                       id_vars=self.parametro, 
-                       value_vars=['Treino','Validação'], 
+        melt = pd.melt(self.table, 
+                       id_vars=self.hyperparameter, 
+                       value_vars=['Train','Validation'], 
                        value_name='Score', 
-                       var_name='Conjunto')
+                       var_name='Set')
 
         f, ax = plt.subplots(figsize=figsize)
-        sn.pointplot(x=self.parametro, y='Score', hue='Conjunto', data=melt, ax=ax)
-        ax.set_title(self.metric_name.title()) if not isinstance(self.metrica, str) else ax.set_title(self.metrica.title())
+        sn.pointplot(x=self.hyperparameter, y='Score', hue='Set', data=melt, ax=ax)
+        ax.set_title(self.metric_name.title()) if not isinstance(self.metric, str) else ax.set_title(self.metric.title())
         ax.set(ylim=ylim)
 
 
 class LearningCurves():
 
     '''
-    Avaliador da performance de um modelo de aprendizado de máquina conforme
-    a quantidade de dados de treinamento vai aumentando.
+    Evaluates the performace of a machine learning estimator based on the increase of the sample size.
 
-    argumentos:
-    X - Pandas dataframe ou numpy array com os atributos.
-    y - Atributo alvo.
-    modelo - Algoritmo ou pipeline
-    validacao - Validação cruzada, pode ser um número inteiro ou uma função; KFold, RepeatedKFold, etc.
-    metrica - Métrica escolhida para avaliação. Pode ser uma string como: 'accuracy', 'neg_mean_absolute_error' ou feito com a função make_scorer.
-    passo -  Quantidade de exemplos acrescentados em cada ciclo de treinamento.
-    embaralhar - Deafault 'False', 'True' para embaralhar os dados antes do treinamento.
-    metric_name - Uma string representando o nome da métrica escolhida que será o título do gráfico.
+    parameters:
 
-    métodos:
-    learning_curves - Plota o gráfico com a visualização das linhas de complexidade.
+    X - Pandas dataframe.
+
+    y - target.
+
+    estimator - Algorithm or pipeline.
+
+    validation - cross validation, it can be a integer number or a function like: KFold, RepeatedKFold, etc.
+
+    metric - Metric choosed for the assessment. It can be a string like: 'accuracy', 'neg_mean_absolute_error' or 
+             build with the make_scorer function.
+
+    step_size -  Sample size that will be add in each training cycle.
+
+    shuffle - Deafault 'False', 'True' inr order to shuffle the data.
+
+    metric_name - String representing the name of the choosed metric. 
+                  It will be the title of the plot when thre make_scorer function is used.
+
+    method:
+    learning_curves - plot.
     '''
 
     def __init__(self,X, y, 
-                 modelo, 
-                 validacao, 
-                 metrica, 
+                 estimator, 
+                 validation, 
+                 metric, 
                  step_size, 
-                 embaralhar=False,
+                 shuffle=False,
                  metric_name='metric'):
 
         self.X = X
         self.y = y
-        self.modelo = modelo
-        self.validacao = validacao
-        self.metrica = metrica
+        self.estimator = estimator
+        self.validation = validation
+        self.metric = metric
         self.step_size = step_size
-        self.embaralhar = embaralhar
+        self.shuffle = shuffle
         self.metric_name = metric_name
-        self.dataframe = None
+        self.table = None
 
     def __computaion(self):
-        if self.embaralhar:
+        if self.shuffle:
             self.X, self.y = shuffle(self.X, self.y)
 
         guardar = []
         for step in range(self.step_size, len(self.X)+1, self.step_size):    
-            validacao_cruzada = cross_validate(self.modelo, 
+            validacao_cruzada = cross_validate(self.estimator, 
                                                self.X.iloc[:step,:], 
                                                self.y.iloc[:step],
-                                               scoring=self.metrica,
-                                               cv=self.validacao,
+                                               scoring=self.metric,
+                                               cv=self.validation,
                                                return_train_score=True,
                                                n_jobs=-1)
             
@@ -163,8 +177,9 @@ class LearningCurves():
             quantidade_exemplos = step
 
             guardar.append((quantidade_exemplos, treino, teste))
-            print(f'Amostras: {quantidade_exemplos}')
-            print(f'Treino: {np.round(treino, 3)} | Validação: {np.round(teste, 3)}\n') 
+
+            print(f'Samples: {quantidade_exemplos}')
+            print(f'Train: {np.round(treino, 3)} | Validation: {np.round(teste, 3)}\n') 
             
         return guardar
 
@@ -173,30 +188,29 @@ class LearningCurves():
                         ylim=None):
 
         '''
-        Esse método cria a visualização
-        das curvas de aprendizagem de treino e validação
+        This method generates the plot
 
-        argumentos:
-        figsize - tupla que determina a altura e largura de cada gráfico 
-        ylim - tupla com a faixa de valores para o eixo y
+        parameters:
+        figsize - tuple that determines the height and width of the plot. 
+        ylim - tuple for the range of values in the y axis.
         '''
 
-        self.dataframe = pd.DataFrame(self.__computaion(), columns=['Quantidade de Exemplos', 'Treino','Validação'])
+        self.table = pd.DataFrame(self.__computaion(), columns=['Sample size', 'Train','Validation'])
 
-        melt = pd.melt(self.dataframe,
-                       id_vars='Quantidade de Exemplos',
-                       value_vars=['Treino','Validação'],
+        melt = pd.melt(self.table,
+                       id_vars='Sample size',
+                       value_vars=['Train','Validation'],
                        value_name='Score',
-                       var_name='Conjunto')
+                       var_name='Set')
 
         f, ax = plt.subplots(figsize=figsize)
-        sn.pointplot(x='Quantidade de Exemplos',
+        sn.pointplot(x='Sample size',
                      y='Score', 
-                     hue='Conjunto',
+                     hue='Set',
                      palette=('green','red'),
                      data=melt,
                      ax=ax)
-        ax.set_title(self.metric_name.title()) if not isinstance(self.metrica, str) \
-        else ax.set_title(self.metrica.title())
+        ax.set_title(self.metric_name.title()) if not isinstance(self.metric, str) \
+        else ax.set_title(self.metric.title())
         ax.set(ylim=ylim)
  
