@@ -1,14 +1,19 @@
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score,
+    mean_absolute_error, mean_squared_error, mean_squared_log_error, median_absolute_error, mean_absolute_percentage_error)
+import operator
 
 def forward_feature_selection(X_train, 
                              X_test, 
                              y_train, 
                              y_test, 
                              model,
-                             metric, 
+                             task_type,
+                             metric,
+                             probability=False, 
                              analyse_together=None,
                              steps=20,
-                             label=1):
+                             greater_is_better=True,
+                             **kwargs):
     accepted = []
     greater_score = 0
 
@@ -28,16 +33,25 @@ def forward_feature_selection(X_train,
             model.fit(X_train[accepted + variable], y_train)
             y_pred = model.predict(X_test[accepted + variable])
 
-            scores = {'accuracy_score': accuracy_score,
-                      'precision_score': precision_score,
-                      'recall_score': recall_score,
-                      'f1_score': f1_score}
+            scores = {'classification':{'accuracy_score': accuracy_score,
+                                        'precision_score': precision_score,
+                                        'recall_score': recall_score,
+                                        'f1_score': f1_score,
+                                        'roc_auc_score': roc_auc_score},
+                                        
+                      'regression':{'mean_absolute_error': mean_absolute_error,
+                                    'mean_squared_error': mean_squared_error,
+                                    'mean_squared_log_error': mean_squared_log_error,
+                                    'median_absolute_error': median_absolute_error,
+                                    'mean_absolute_percentage_error': mean_absolute_percentage_error}
+                     }
 
-            parameters = {'y_true': y_test, 'y_pred': y_pred} if metric == 'accuracy_score' else {'y_true': y_test, 'y_pred': y_pred, 'pos_label': label}
+            parameters = {'y_true': y_test, 'y_pred': y_pred}
 
-            score = scores[metric](**parameters)
+            score = scores[task_type][metric](**parameters, **kwargs)
 
-            if score > greater_score:
+            sign = operator.gt if greater_is_better else operator.lt
+            if sign(score, greater_score):
                 variable_greater_score = variable
                 greater_score = score
 
