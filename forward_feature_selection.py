@@ -1,19 +1,19 @@
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score,
-    mean_absolute_error, mean_squared_error, mean_squared_log_error, median_absolute_error, mean_absolute_percentage_error)
+    mean_absolute_error, mean_squared_error, mean_squared_log_error, median_absolute_error)
 import operator
 
 def forward_feature_selection(X_train, 
-                             X_test, 
-                             y_train, 
-                             y_test, 
-                             model,
-                             task_type,
-                             metric,
-                             probability=False, 
-                             analyse_together=None,
-                             steps=20,
-                             greater_is_better=True,
-                             **kwargs):
+                              X_test, 
+                              y_train, 
+                              y_test, 
+                              model,
+                              task_type,
+                              metric,
+                              probability=False, 
+                              analyse_together=None,
+                              steps=20,
+                              greater_is_better=True,
+                              **kwargs):
     accepted = []
     greater_score = 0
 
@@ -31,7 +31,7 @@ def forward_feature_selection(X_train,
                 continue
          
             model.fit(X_train[accepted + variable], y_train)
-            y_pred = model.predict(X_test[accepted + variable])
+            y_pred = model.predict_proba(X_test[accepted + variable])[:, 1] if probability else model.predict(X_test[accepted + variable])
 
             scores = {'classification':{'accuracy_score': accuracy_score,
                                         'precision_score': precision_score,
@@ -42,8 +42,7 @@ def forward_feature_selection(X_train,
                       'regression':{'mean_absolute_error': mean_absolute_error,
                                     'mean_squared_error': mean_squared_error,
                                     'mean_squared_log_error': mean_squared_log_error,
-                                    'median_absolute_error': median_absolute_error,
-                                    'mean_absolute_percentage_error': mean_absolute_percentage_error}
+                                    'median_absolute_error': median_absolute_error}
                      }
 
             parameters = {'y_true': y_test, 'y_pred': y_pred}
