@@ -62,7 +62,11 @@ class ValidationCurves():
     def __computation(self, param_values):
         guardar = []
         for param in param_values:
-            self.estimator[self.pipeline_step].set_params(**{self.hyperparameter: param}) if self.pipeline else self.estimator.set_params(**{self.hyperparameter: param})
+            
+            if self.pipeline:
+                self.estimator[self.pipeline_step].set_params(**{self.hyperparameter: param})
+            else:
+                self.estimator.set_params(**{self.hyperparameter: param})
 
             validacao_cruzada = cross_validate(self.estimator, 
                                                self.X, 
