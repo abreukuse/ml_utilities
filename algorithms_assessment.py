@@ -18,7 +18,7 @@ class ValidationCurves():
 
     y - target.
 
-    estimator - The machine learning algorithm choosed.
+    estimator - The machine learning algorithm chosen.
 
     hyperparameter - String with the name of the hyperparameter that will be evaluated.
 
