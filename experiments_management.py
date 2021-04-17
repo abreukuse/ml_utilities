@@ -42,6 +42,10 @@ def __log_metrics(metrics,
     score_train = metrics[metric_name](y_train, y_estimate_train)
     score_test = metrics[metric_name](y_test, y_estimate_test)
 
+    if metric_name == 'rmse':
+        score_train = np.sqrt(score_train)
+        score_test = np.sqrt(score_test)
+
     # metric log
     mlflow.log_metric(score_name_train, score_train)
     mlflow.log_metric(score_name_test, score_test)
@@ -209,12 +213,22 @@ def cross_validation(*, pipeline, X, y, cv, metrics):
                 if metric not in ['fit_time','score_time']]
 
     metrics_scores = {}
+    mean_score, max_score, min_score = 0,0,0
     for metric in metrics:
-        mlflow.log_metric(f'max_{metric}', np.max(cross_validation[metric]))
-        mlflow.log_metric(f'min_{metric}', np.min(cross_validation[metric]))
-        mlflow.log_metric(f'mean_{metric}', np.mean(cross_validation[metric]))
+        if metric.endswith('rmse'):
+            mean_score = np.sqrt(np.mean(cross_validation[metric]))
+            max_score = np.sqrt(np.max(cross_validation[metric]))
+            min_score = np.sqrt(np.min(cross_validation[metric]))
+        else:
+            mean_score = np.mean(cross_validation[metric])
+            max_score = np.max(cross_validation[metric])
+            min_score = np.min(cross_validation[metric])
 
-        metrics_scores.setdefault(metric, np.mean(cross_validation[metric]))
+        mlflow.log_metric(f'max_{metric}', max_score)
+        mlflow.log_metric(f'min_{metric}', min_score)
+        mlflow.log_metric(f'mean_{metric}', mean_score)
+
+        metrics_scores.setdefault(metric, mean_score)
 
     return metrics_scores
 
