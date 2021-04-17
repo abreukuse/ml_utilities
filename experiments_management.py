@@ -3,7 +3,7 @@ import mlflow
 from pyngrok import ngrok
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, cross_validate
+from sklearn.model_selection import train_test_split, KFold
 
 def generate_mlflow_ui():
 	"""
@@ -160,7 +160,7 @@ def simple_split(*, task,
     
     if task == 'classification':
         y_proba_train, y_proba_test = None, None
-        
+
         allowed_metrics = ['precision','recall','f1_score','accuracy','auc','log_loss']
         if not set(metrics.keys()).issubset(allowed_metrics):
             raise ValueError(f'Only these metrics are valid: {allowed_metrics}.')
@@ -191,7 +191,7 @@ def simple_split(*, task,
     return metrics_scores
 
 
-def cross_validation(*, pipeline, X, y, cv, metrics):
+def cross_validation(*, pipeline, X, y, n_splits, metrics, random_state, shuffle=True):
     """
     Performs cross validation.
     -------------------------
@@ -200,41 +200,43 @@ def cross_validation(*, pipeline, X, y, cv, metrics):
     pipeline: The sklearn pipeline to run.
     X: Dataframe with all the variables.
     y: target.
-    cv: Number of folds as an integer or cross validatio procedure e.g KFold, StratifiedKFold from sklearn.
+    n_splits: Number of folds as an integer.
     metrics: dictionary containing the metrics names as keys and the metrics fucnctions as values.
 
     Returns a dictionary with metrics names and metrics results.
     """
-    cross_validation = cross_validate(pipeline, X, y, 
-                                      scoring=metrics, 
-                                      cv = cv, 
-                                      return_train_score=True, 
-                                      n_jobs=-1)
-
-    # log metrics
-    metrics = [metric for metric in cross_validation.keys() 
-                if metric not in ['fit_time','score_time']]
-
     metrics_scores = {}
-    mean_score, max_score, min_score = 0,0,0
-    for metric in metrics:
-        if metric.endswith('rmse'):
-            mean_score = np.sqrt(np.mean(cross_validation[metric]))
-            max_score = np.sqrt(np.max(cross_validation[metric]))
-            min_score = np.sqrt(np.min(cross_validation[metric]))
-        else:
-            mean_score = np.mean(cross_validation[metric])
-            max_score = np.max(cross_validation[metric])
-            min_score = np.min(cross_validation[metric])
 
-        mlflow.log_metric(f'max_{metric}', max_score)
-        mlflow.log_metric(f'min_{metric}', min_score)
-        mlflow.log_metric(f'mean_{metric}', mean_score)
+    splits = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+    for metric_name, metric in metrics.items():
+        for train_index, test_index in splits.split(X, y):
+            X_train, y_train = X.loc[train_index], y.loc[train_index]
+            X_test, y_test = X.loc[test_index], y.loc[test_index]
 
-        metrics_scores.setdefault(metric, mean_score)
+            if len(pipeline) > 1:
+                X_train = pipeline[:-1].fit_transform(X_train)
+                pipeline[-1].fit(X_train, y_train)
+            else:
+                pipeline.fit(X_train, y_train)
+
+            y_pred_train = pipeline.predict(X_train)
+            y_pred_test = pipeline.predict(X_test)
+
+            score_train = metrics[metric_name](y_train, y_pred_train)
+            score_test = metrics[metric_name](y_test, y_pred_test)
+
+            if metric_name == 'rmse':
+                score_train = np.sqrt(score_train)
+                score_test = np.sqrt(score_test)
+
+            metrics_scores.setdefault(f'train_{metric_name}', []).append(score_train)
+            metrics_scores.setdefault(f'test_{metric_name}', []).append(score_test)
+
+    for metric_name, scores in metrics_scores.items():
+        mlflow.log_metric(metric_name, np.mean(scores))
+        metrics_scores[metric_name] = np.mean(scores)
 
     return metrics_scores
-
 
 def experiment_manager(*, task, 
                        pipeline, X, y, 
@@ -263,7 +265,7 @@ def experiment_manager(*, task,
     remote_ui: Interact with mlflow inerface remotely or locally. Set 'True' if you are using google colab or other remote platform.
     available kwargs: run_label -> For optional labelling in the run name.
                       test_size -> When 'simple_split' is chose. For the size of the test set.
-                      cv -> When 'cross_validation' is chose. For the cross validation strategy.
+                      n_splits -> When 'cross_validation' is chose. Integer for the number of n_splits.
     """
     
     experiment_name = pipeline[-1].__class__.__name__
@@ -298,11 +300,12 @@ def experiment_manager(*, task,
 
             # cross validation
             elif validation == 'cross_validation':
-                mlflow.set_tag('cross_validation', kwargs['cv'])
+                mlflow.set_tag('n_splits', kwargs['n_splits'])
                 metrics_scores = cross_validation(pipeline=pipeline,
                                                   X=X, 
                                                   y=y, 
-                                                  cv=kwargs['cv'], 
+                                                  n_splits=kwargs['n_splits'],
+                                                  random_state=random_state,
                                                   metrics=metrics)
 
         # Print results
