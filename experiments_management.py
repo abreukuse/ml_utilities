@@ -159,12 +159,15 @@ def simple_split(*, task,
     y_pred_test = pipeline.predict(X_test)
     
     if task == 'classification':
-        y_proba_train = pipeline.predict_proba(X_train)[:,1]
-        y_proba_test = pipeline.predict_proba(X_test)[:,1]
-
+        y_proba_train, y_proba_test = None, None
+        
         allowed_metrics = ['precision','recall','f1_score','accuracy','auc','log_loss']
         if not set(metrics.keys()).issubset(allowed_metrics):
             raise ValueError(f'Only these metrics are valid: {allowed_metrics}.')
+
+        if any(item in ['auc','log_loss'] for item in metrics.keys()):
+            y_proba_train = pipeline.predict_proba(X_train)[:,1]
+            y_proba_test = pipeline.predict_proba(X_test)[:,1]
 
         metrics_scores = __logging(metrics, 
                                    y_train, 
