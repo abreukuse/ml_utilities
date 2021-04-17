@@ -206,7 +206,7 @@ def cross_validation(*, pipeline, X, y, n_splits, metrics, random_state, shuffle
     Returns a dictionary with metrics names and metrics results.
     """
     metrics_scores = {}
-
+    X_train = None
     splits = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
     for metric_name, metric in metrics.items():
         for train_index, test_index in splits.split(X, y):
@@ -235,6 +235,9 @@ def cross_validation(*, pipeline, X, y, n_splits, metrics, random_state, shuffle
     for metric_name, scores in metrics_scores.items():
         mlflow.log_metric(metric_name, np.mean(scores))
         metrics_scores[metric_name] = np.mean(scores)
+
+    # Collect data artifacts from the last fold
+    data_artifacts(X_train)
 
     return metrics_scores
 
