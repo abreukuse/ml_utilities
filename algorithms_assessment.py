@@ -18,18 +18,18 @@ class ValidationCurves():
 
     y - target.
 
-    estimator - The machine learning algorithm choosed.
+    estimator - The machine learning algorithm chosen.
 
     hyperparameter - String with the name of the hyperparameter that will be evaluated.
 
-    metric - Metric choosed for the assessment. It can be a string like: 'accuracy', 'neg_mean_absolute_error' or 
+    metric - Metric chosen for the assessment. It can be a string like: 'accuracy', 'neg_mean_absolute_error' or 
              build with the make_scorer function.
 
     validation - cross validation, it can be a integer number or a function like: KFold, RepeatedKFold, etc.
 
     pipeline - Dafault 'False'. it need to be set as 'True' if a pipeline is used.
 
-    metric_name - String representing the name of the choosed metric. 
+    metric_name - String representing the name of the chosen metric. 
                   It will be the title of the plot when thre make_scorer function is used.
 
     pipeline_step - The defalut is -1 for the last step in the process, usualy the ML algorithm. 
@@ -130,14 +130,14 @@ class LearningCurves():
 
     validation - cross validation, it can be a integer number or a function like: KFold, RepeatedKFold, etc.
 
-    metric - Metric choosed for the assessment. It can be a string like: 'accuracy', 'neg_mean_absolute_error' or 
+    metric - Metric chosen for the assessment. It can be a string like: 'accuracy', 'neg_mean_absolute_error' or 
              build with the make_scorer function.
 
     step_size -  Sample size that will be add in each training cycle.
 
     shuffle - Deafault 'False', 'True' inr order to shuffle the data.
 
-    metric_name - String representing the name of the choosed metric. 
+    metric_name - String representing the name of the chosen metric. 
                   It will be the title of the plot when thre make_scorer function is used.
 
     method:
