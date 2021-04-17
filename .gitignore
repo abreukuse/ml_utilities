@@ -1,2 +1,7 @@
 examples/.ipynb_checkpoints/*
 examples/__pycache__/*
+mlruns/*
+artifacts_temp/*
+__pycache__/*
+.ipynb_checkpoints/*
+*.ipynb
