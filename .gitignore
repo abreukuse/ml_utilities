@@ -4,3 +4,6 @@ mlruns/*
 artifacts_temp/*
 __pycache__/*
 .ipynb_checkpoints/*
+examples/artifacts_temp/*
+examples/*.py
+examples/mlruns/*
