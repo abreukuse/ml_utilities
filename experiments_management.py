@@ -297,7 +297,8 @@ def experiment_manager(*, task,
     hyperparameters: A function returning a dictionary with all the hyperparameters names as keys 
                      and range values to be tested in each algorithm as values.
     metrics: dictionary containing the metrics names as keys and the metrics fucnctions as values.
-             For 'cross_validation', the metrics need to be wrapped with the make_scorer function from sklearn.
+             Metrics names allowed are: For classification {'precision', 'recall', 'f1_score', 'accuracy', 'auc', 'log_loss'}.
+					For regression {'rmse', 'mae', 'mape', 'msle', 'r2'}.
     random_state: Random number generator for the split in data.
     remote_ui: Interact with mlflow inerface remotely or locally. Set 'True' if you are using google colab or other remote platform.
     available kwargs: run_label -> For optional labelling in the run name.
