@@ -127,13 +127,13 @@ def data_artifacts(X_train):
 
 
 def simple_split(*, task, 
-                 pipeline, 
-                 X, 
-                 y, 
-                 test_size, 
-                 metrics, 
-                 random_state,
-                 inverse=None):
+                    pipeline, 
+                    X, 
+                    y, 
+                    test_size, 
+                    metrics, 
+                    random_state,
+                    inverse=None):
     """
     Split the data in train and test sets.
     -------------------------------------
