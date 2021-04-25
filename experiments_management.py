@@ -214,11 +214,8 @@ def cross_validation(*, task,
                         pipeline, 
                         X, 
                         y,
-                        cv_method, 
-                        # n_splits, 
+                        cv_method,  
                         metrics, 
-                        # random_state, 
-                        # shuffle=True,
                         inverse=None):
     """
     Performs cross validation.
@@ -228,7 +225,7 @@ def cross_validation(*, task,
     pipeline: The sklearn pipeline to run.
     X: Dataframe with all the variables.
     y: target.
-    n_splits: Number of folds as an integer.
+    cv_method: When 'cross_validation' is chose. A callble from sklearn e.g {KFold, StratifiedKFold}
     metrics: Dictionary containing the metrics names as keys and the metrics fucnctions as values.
     inverse: A function with the inverse transformation applied in the target.
 
@@ -236,7 +233,7 @@ def cross_validation(*, task,
     """
     metrics_scores = {}
     X_train = None
-    splits = cv_method#(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+    splits = cv_method
     for metric_name, metric in metrics.items():
         for train_index, test_index in splits.split(X, y):
             # split
@@ -312,7 +309,6 @@ def experiment_manager(task,
     available kwargs: run_label -> For optional labelling in the run name.
                       test_size -> When 'simple_split' is chose. Float for the size of the test set.
                       cv_method -> When 'cross_validation' is chose. A callble from sklearn e.g {KFold, StratifiedKFold}
-                      n_splits -> When 'cross_validation' is chose. Integer for the number of n_splits.
                       inverse -> A function with the inverse transformation applied in the target.
     """
     
@@ -350,14 +346,11 @@ def experiment_manager(task,
             # cross validation
             elif validation == 'cross_validation':
                 mlflow.set_tag('cv', kwargs['cv_method'])
-                # mlflow.set_tag('n_splits', kwargs['n_splits'])
                 metrics_scores = cross_validation(task=task,
                                                   pipeline=pipeline,
                                                   X=X, 
                                                   y=y,
                                                   cv_method=kwargs['cv_method'], 
-                                                  # n_splits=kwargs['n_splits'],
-                                                  # random_state=random_state,
                                                   metrics=metrics,
                                                   inverse=kwargs.get('inverse'))
 
