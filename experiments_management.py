@@ -8,7 +8,7 @@ import mlflow
 from pyngrok import ngrok
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, KFold
+from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 
 def generate_mlflow_ui():
 	"""
@@ -205,7 +205,8 @@ def simple_split(*, task,
 def cross_validation(*, task, 
                         pipeline, 
                         X, 
-                        y, 
+                        y,
+                        cv_method, 
                         n_splits, 
                         metrics, 
                         random_state, 
@@ -227,7 +228,7 @@ def cross_validation(*, task,
     """
     metrics_scores = {}
     X_train = None
-    splits = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+    splits = cv_method(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
     for metric_name, metric in metrics.items():
         for train_index, test_index in splits.split(X, y):
             # split
@@ -276,14 +277,14 @@ def cross_validation(*, task,
     return metrics_scores
 
 def experiment_manager(*, task, 
-                       pipeline, X, y, 
-                       runs, 
-                       validation, 
-                       hyperparameters, 
-                       metrics, 
-                       random_state=0, 
-                       remote_ui=False,
-                       **kwargs):
+                          pipeline, X, y, 
+                          runs, 
+                          validation, 
+                          hyperparameters, 
+                          metrics, 
+                          random_state=0, 
+                          remote_ui=False,
+                          **kwargs):
     """
     This function runs experiments and records the results.
     -----------------------------------------------------
@@ -302,6 +303,7 @@ def experiment_manager(*, task,
     remote_ui: Interact with mlflow inerface remotely or locally. Set 'True' if you are using google colab or other remote platform.
     available kwargs: run_label -> For optional labelling in the run name.
                       test_size -> When 'simple_split' is chose. Float for the size of the test set.
+                      cv_method -> When 'cross_validation' is chose. A callble from sklearn e.g {KFold, StratifiedKFold}
                       n_splits -> When 'cross_validation' is chose. Integer for the number of n_splits.
                       inverse -> A function with the inverse transformation applied in the target.
     """
@@ -339,11 +341,13 @@ def experiment_manager(*, task,
 
             # cross validation
             elif validation == 'cross_validation':
+                mlflow.set_tag('cv', kwargs['cv_method'])
                 mlflow.set_tag('n_splits', kwargs['n_splits'])
                 metrics_scores = cross_validation(task=task,
                                                   pipeline=pipeline,
                                                   X=X, 
-                                                  y=y, 
+                                                  y=y,
+                                                  cv_method=kwargs['cv_method'], 
                                                   n_splits=kwargs['n_splits'],
                                                   random_state=random_state,
                                                   metrics=metrics,
