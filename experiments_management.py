@@ -1,4 +1,12 @@
 """
+Requirements:
+-----------
+pyngrok==5.0.5
+mlflow==1.15.0
+pandas==1.2.3
+numpy==1.19.3
+scikit-learn==0.24.1
+
 Examples of usege can be found in the url below: 
 https://nbviewer.jupyter.org/github/abreukuse/ml_utilities/blob/master/examples/experiments_management.ipynb
 """
@@ -8,7 +16,7 @@ import mlflow
 from pyngrok import ngrok
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
+from sklearn.model_selection import train_test_split
 
 def generate_mlflow_ui():
     """
