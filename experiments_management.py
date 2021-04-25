@@ -40,7 +40,7 @@ def __log_metrics(metrics,
     ---------------------------------------
 
     Parameters
-    metrics: dictionary containing the metrics names as keys and the metrics fucnctions as values.
+    metrics: Dictionary containing the metrics names as keys and the metrics fucnctions as values.
     metrics_name: String representing the name of the metric.
     y_train and y_test: A numpy array or pandas series with the true train and test target values.
     y_estimate_train and y_estimate_test: A numpy array or pandas series with the predicted train and test target values.
@@ -79,7 +79,7 @@ def __logging(metrics,
     --------------------------------------------------------
 
     Parameters
-    metrics: dictionary containing the metrics names as keys and the metrics fucnctions as values.
+    metrics: Dictionary containing the metrics names as keys and the metrics fucnctions as values.
     y_train and y_test: The true target values from train and test.
     y_pred_train and y_pred_test: Array with the estimate results from the algorithms.
     y_proba_train and y_proba_test: An array with the probability results from the algorithms.
@@ -116,7 +116,7 @@ def data_artifacts(X_train):
     ---------------------------------------------------
 
     Parameter
-    X_train: The pandas data frame right before it enters the algorithm in the last but one step in the pipeline.
+    X_train: The pandas data frame right before it enters the algorithm in the last but one step the pipeline.
     """
     os.makedirs('artifacts_temp', exist_ok=True)
     
@@ -147,12 +147,12 @@ def simple_split(*, task,
     -------------------------------------
 
     Parameters
-    task: string indicating if it is a 'classification' or 'regression' task.
+    task: String indicating if it is a 'classification' or 'regression' task.
     pipeline: The sklearn pipeline to run.
     X: Dataframe with all the variables.
     y: Target.
     test_size: Size of the test data. It can be a float representing a percentage or an interger.
-    metrics: dictionary containing the metrics names as keys and the metrics fucnctions as values.
+    metrics: Sictionary containing the metrics names as keys and the metrics fucnctions as values.
     random_state: Random number generator for the split in data.
     inverse: A function with the inverse transformation applied in the target.
 
@@ -295,15 +295,16 @@ def experiment_manager(task,
     -----------------------------------------------------
 
     Parameters
-    task: string indicating if it is a 'classification' or 'regression' task.
+    task: String indicating if it is a 'classification' or 'regression' task.
     pipeline: The sklearn pipeline to run.
     X: Dataframe with all the variables.
-    y: target.
+    y: Target.
     validation: 'simple_split' or 'cross_validation'.
     hyperparameters: A function returning a dictionary with all the hyperparameters names as keys 
                      and range values to be tested in each algorithm as values.
-    metrics: dictionary containing the metrics names as keys and the metrics fucnctions as values.
-             For 'cross_validation', the metrics need to be wrapped with the make_scorer function from sklearn.
+    metrics: Dictionary containing the metrics names as keys and the metrics fucnctions as values.
+             Metrics names allowed are: For classification {'precision', 'recall', 'f1_score', 'accuracy', 'auc', 'log_loss'}.
+					For regression {'rmse', 'mae', 'mape', 'msle', 'r2'}.
     random_state: Random number generator for the split in data.
     remote_ui: Interact with mlflow inerface remotely or locally. Set 'True' if you are using google colab or other remote platform.
     available kwargs: run_label -> For optional labelling in the run name.
