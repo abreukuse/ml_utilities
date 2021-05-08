@@ -170,19 +170,21 @@ def simple_split(*, task,
     # Collect data artifacts
     data_artifacts(X_train)
     
-    y_pred_train = pipeline[-1].predict(X_train)
-    y_pred_test = pipeline.predict(X_test)
     
     if task == 'classification':
-        y_proba_train, y_proba_test = None, None
+        y_train_pred, y_test_pred, y_proba_train, y_proba_test = None, None, None, None
 
         allowed_metrics = ['precision','recall','f1_score','accuracy','auc','log_loss']
         if not set(metrics.keys()).issubset(allowed_metrics):
             raise ValueError(f'Only these metrics are valid: {allowed_metrics}.')
 
-        if any(item in ['auc','log_loss'] for item in metrics.keys()):
+        if any(item in allowed_metrics[-2:] for item in metrics.keys()):
             y_proba_train = pipeline[-1].predict_proba(X_train)[:,1]
             y_proba_test = pipeline.predict_proba(X_test)[:,1]
+
+        if any(item in allowed_metrics[:-2] for item in metrics.keys()):
+            y_pred_train = pipeline[-1].predict(X_train)
+            y_pred_test = pipeline.predict(X_test)
 
         metrics_scores = __logging(metrics, 
                                    y_train, 
@@ -193,6 +195,10 @@ def simple_split(*, task,
                                    y_proba_test)
 
     elif task == 'regression':
+
+        y_pred_train = pipeline[-1].predict(X_train)
+        y_pred_test = pipeline.predict(X_test)
+
         if inverse:
             targets = [y_train, y_test, y_pred_train, y_pred_test]
             y_train, y_test, y_pred_train, y_pred_test = [inverse(target) for target in targets]
