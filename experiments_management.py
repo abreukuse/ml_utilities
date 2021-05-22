@@ -172,7 +172,7 @@ def simple_split(*, task,
     
     
     if task == 'classification':
-        y_train_pred, y_test_pred, y_proba_train, y_proba_test = None, None, None, None
+        y_pred_train, y_pred_test, y_proba_train, y_proba_test = None, None, None, None
 
         allowed_metrics = ['precision','recall','f1_score','accuracy','auc','log_loss']
         if not set(metrics.keys()).issubset(allowed_metrics):
@@ -310,7 +310,7 @@ def experiment_manager(task,
                      and range values to be tested in each algorithm as values.
     metrics: Dictionary containing the metrics names as keys and the metrics fucnctions as values.
              Metrics names allowed are: For classification {'precision', 'recall', 'f1_score', 'accuracy', 'auc', 'log_loss'}.
-					For regression {'rmse', 'mae', 'mape', 'msle', 'r2'}.
+                    For regression {'rmse', 'mae', 'mape', 'msle', 'r2'}.
     random_state: Random number generator for the split in data.
     remote_ui: Interact with mlflow inerface remotely or locally. Set 'True' if you are using google colab or other remote platform.
     available kwargs: run_label -> For optional labelling in the run name.
