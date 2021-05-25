@@ -7,3 +7,4 @@ __pycache__/*
 examples/artifacts_temp/*
 examples/*.py
 examples/mlruns/*
+examples/plot_training_process.ipynb
