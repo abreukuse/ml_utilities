@@ -1,12 +1,53 @@
+# requiremets: modin==0.9.1
+
 import pandas as pd
 import numpy as np
+
+def __create_holiday_feature(df, 
+                             values, 
+                             holiday_name, 
+                             date_column, 
+                             map_time, 
+                             which_week=None, 
+                             holiday=None, 
+                             month=None):
+    """
+    Called inside __time_to_holiday function to add the features to the original dataframe
+    ---------------------------------------
+    Parameters
+    
+    df: Pandas dataframe with a date columns.
+    values: Which time stamps to create e.g ['days','weeks','months','years']. It came from the holidays dictionary in seasonal features
+    holiday_name: String as the first item in the tuple passed to holidays arguments in seasonal_features.
+    date_column: Name of the column that contains the dates.
+    date_column: dictionary mapping timastamps in the right format for pandas e.g {'days':'D','weeks':'W','months':'M','minutes':'m'}.
+    which_week: Which week of the month {'first', 'second', 'last', etc} to form the dynamic holiday.
+    holiday: String containing the holiday date for static holiday e.g 'December-25'
+    month: String. Month that the dynamic holiday happen
+    """
+    if (which_week == None) and (holiday_name != None):
+        date = df[date_column].apply(lambda x: pd.to_datetime(f'{x.year}-{holiday}', format='%Y-%B-%d'))
+    else:
+        date = df[date_column].apply(lambda x: which_week.apply(pd.to_datetime(f'{x.year}-{month}', format='%Y-%B')))
+
+    for value in values:
+        df[f'{value}_to_{holiday_name}'] = (df[date_column] - date)/np.timedelta64(1, map_time[value])
 
 def __time_to_holidays(df, 
                        date_column,
                        static_holidays=None,
                        dynamic_holidays=None):
 
-    """This function is used inside the 'seasonal_features' function and it creates features related to holidays."""
+    """
+    This function is used inside the 'seasonal_features' function and it creates features related to holidays.
+    ---------------------------------------
+    Parameters
+
+    df: Pandas dataframe with a date columns.
+    date_column: Name of the column that contains the dates.
+    static_holidays: Holidays that always happens at the same days e.g {('christmas', 'December-25'), ('4-of-July', 'July-04')}.
+    dynamic_holidays: Holidays that happens at different days each year e.g {('black-friday', 'November', 'Friday', 'fourth'), ('fathers-day', 'June', 'Sunday', 'third')}.
+    """
 
     map_time = {'days':'D',
                 'weeks':'W',
@@ -34,9 +75,7 @@ def __time_to_holidays(df,
         for key, values in static_holidays.items():
             holiday_name = key[0]
             holiday_date = key[1]
-            date = df[date_column].apply(lambda x: pd.to_datetime(f'{x.year}-{holiday_date}', format='%Y-%B-%d'))
-            for value in values:
-                df[f'{value}_to_{holiday_name}'] = (df[date_column] - date)/np.timedelta64(1, map_time[value])
+            __create_holiday_feature(df, values, holiday_name, date_column, map_time, holiday=holiday_date)
         
     if dynamic_holidays:
         for key, values in dynamic_holidays.items():
@@ -48,16 +87,13 @@ def __time_to_holidays(df,
 
                 if week != 'last':
                     week_of_month = pd.tseries.offsets.WeekOfMonth(week=map_week[week], weekday=map_weekday[week_day])
-                    date = df[date_column].apply(lambda x: week_of_month.apply(pd.to_datetime(f'{x.year}-{month}', format='%Y-%B')))
 
-                    for value in values:
-                        df[f'{value}_to_{holiday_name}'] = (df[date_column] - date)/np.timedelta64(1, map_time[value])
+                    __create_holiday_feature(df, values, holiday_name, date_column, map_time, which_week=week_of_month, month=month)
+
                 else:
                     last_week_of_month = pd.tseries.offsets.LastWeekOfMonth(weekday=map_weekday[week_day])
-                    date  = df[date_column].apply(lambda x: last_week_of_month.apply(pd.to_datetime(f'{x.year}-{month}', format='%Y-%B')))
 
-                    for value in values:
-                        df[f'{value}_to_{holiday_name}'] = (df[date_column] - date)/np.timedelta64(1, map_time[value])
+                    __create_holiday_feature(df, values, holiday_name, date_column, map_time, which_week=last_week_of_month, month=month)
 
 
 def seasonal_features(df, 
@@ -100,7 +136,7 @@ def seasonal_features(df,
 
     if copy: df = df.copy()
 
-    obj = df[date_column].dt
+    dates = df[date_column].dt
 
     features = ['day',
                 'quarter',
@@ -113,7 +149,7 @@ def seasonal_features(df,
                 'second'] if which_ones == 'all' else which_ones
 
     for feature in features:
-        attribute = getattr(obj, feature) if feature is not 'week' else getattr(obj.isocalendar(), feature)
+        attribute = getattr(dates, feature) if feature is not 'week' else getattr(dates.isocalendar(), feature).apply(lambda x: int(x))
         if cyclical:
             df[f'{date_column}_{feature}_cos'] = np.cos(2 * np.pi * attribute/attribute.max())
             df[f'{date_column}_{feature}_sin'] = np.sin(2 * np.pi * attribute/attribute.max())
@@ -187,6 +223,7 @@ def moving_statistics_features(df,
                                which_ones='all', 
                                group_by=None, 
                                delta_roll_mean=False,
+                               weighted_average=False,
                                copy=False):
     '''
     Generates moving statistics features from a time series
@@ -212,7 +249,7 @@ def moving_statistics_features(df,
     '''
     if copy: df = df.copy()
 
-    obj = df.groupby([group_by])[target].shift() if group_by else df[target].shift()
+    targets = df.groupby([group_by])[target].shift() if group_by else df[target].shift()
 
     features = ['mean',
                 'median',
@@ -225,15 +262,22 @@ def moving_statistics_features(df,
 
     for feature in features:
         for window in windows:
-            df[f'{feature}_{target}_{window}'] = getattr(obj.rolling(window), feature)()
+            df[f'{feature}_{target}_{window}'] = getattr(targets.rolling(window), feature)()
 
     if delta_roll_mean:
         for window in windows:
             if group_by:
                 series = df.groupby([group_by])[target]
                 groups = series.groups.keys()
-                df[f'delta_roll_mean_{target}_{window}'] = pd.concat([(series.get_group(group) - series.get_group(group).rolling(window).mean()).shift() for group in groups])
+                df[f'delta_roll_mean_{target}_{window}'] = \
+                pd.concat([(series.get_group(group) - series.get_group(group).rolling(window).mean()).shift() for group in groups])
             else:
-                df[f'delta_roll_mean_{target}_{window}'] = (df[target] - df[target].rolling(window).mean()).shift()
+                df[f'delta_roll_mean_{target}_{window}'] = \
+                (df[target] - df[target].rolling(window).mean()).shift()
+
+    if weighted_average:
+        for window in windows:
+            df[f'weighted_average_{target}_{window}'] = \
+            targets.rolling(window).apply(lambda x: x[::-1].cumsum().sum() * 2 / window / (window + 1))
 
     if copy: return df
