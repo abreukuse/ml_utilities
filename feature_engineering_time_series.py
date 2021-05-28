@@ -1,7 +1,6 @@
-# requiremets: modin==0.9.1
-
 import pandas as pd
 import numpy as np
+from numba import jit
 
 def __create_holiday_feature(df, 
                              values, 
@@ -217,6 +216,14 @@ def lagging_features(df,
     if copy: return df
 
 
+@jit(nopython=True)
+def __weighted_average(x, window):
+    """Create weighted moving average features"""
+    array = np.array([np.nan]*window)
+    for i in range(len(x) - window):
+        array = np.append(array, x[i : window+i][::-1].cumsum().sum() * 2 / window / (window + 1))
+    return array
+
 def moving_statistics_features(df, 
                                target, 
                                windows, 
@@ -249,7 +256,7 @@ def moving_statistics_features(df,
     '''
     if copy: df = df.copy()
 
-    targets = df.groupby([group_by])[target].shift() if group_by else df[target].shift()
+    targets = df.groupby(group_by, sort=False, as_index=False)[target] if group_by else df[target]
 
     features = ['mean',
                 'median',
@@ -262,7 +269,7 @@ def moving_statistics_features(df,
 
     for feature in features:
         for window in windows:
-            df[f'{feature}_{target}_{window}'] = getattr(targets.rolling(window), feature)()
+            df[f'{feature}_{target}_{window}'] = getattr(targets.shift().rolling(window), feature)()
 
     if delta_roll_mean:
         for window in windows:
@@ -277,7 +284,10 @@ def moving_statistics_features(df,
 
     if weighted_average:
         for window in windows:
-            df[f'weighted_average_{target}_{window}'] = \
-            targets.rolling(window).apply(lambda x: x[::-1].cumsum().sum() * 2 / window / (window + 1))
+            if group_by:
+                result = [__weighted_average(values[target].values, window) for group, values in targets]
+                df[f'weighted_average_{target}_{window}'] = np.concatenate(result)
+            else:
+                df[f'weighted_average_{target}_{window}'] = __weighted_average(targets.values, window)
 
     if copy: return df
