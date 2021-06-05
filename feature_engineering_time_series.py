@@ -26,10 +26,8 @@ def __create_holiday_feature(df,
     month: String. Month that the dynamic holiday happen
     """
     if (which_week == None) and (holiday_name != None):
-        # date = df[date_column].apply(lambda x: pd.to_datetime(f'{x.year}-{holiday}', format='%Y-%B-%d'))
         date = df[date_column].apply(lambda x: datetime.strptime(f'{x.year}-{holiday}', '%Y-%B-%d'))
     else:
-        # date = df[date_column].apply(lambda x: which_week.apply(pd.to_datetime(f'{x.year}-{month}', format='%Y-%B')))
         date = df[date_column].apply(lambda x: which_week.apply(datetime.strptime(f'{x.year}-{month}', '%Y-%B')))
 
     for value in values:
